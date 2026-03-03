@@ -1,0 +1,57 @@
+services:
+  nginx-proxy:
+    image: 'jc21/nginx-proxy-manager:latest'
+    restart: unless-stopped
+    ports:
+      - '80:80'   # Tráfico web normal
+      - '443:443' # Tráfico seguro (SSL)
+      - '81:81'   # ESTE ES EL PUERTO PARA LA INTERFAZ GRÁFICA
+    volumes:
+      - ./data:/data
+      - ./letsencrypt:/etc/letsencrypt
+    networks:
+      - app-network
+  # Base de Datos
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb_project
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  # Backend Express
+  api:
+    build: ./Api
+    container_name: express_api
+    environment:
+      - databaseUrl=mongodb://mongodb:27017/gimnasios
+      - jwtSecret=YxoSrXRQTjdOaUGfEXewIOhG
+      - PORT=3010
+    ports:
+      - "3010:3010"
+    depends_on:
+      - mongodb
+
+  # Frontend Administrativo (Vite)
+  web:
+    build: ./Web
+    container_name: vite_web
+    environment:
+      - VITE_API_URL=https://37.60.244.154:3010  # <--- IMPORTANTE: Usar el nuevo dominio
+      - VITE_APP_TITLE=My Controller Produccion
+      - VITE_SECRET_KEY=YxoSrXRQTjdOaUGfEXewIOhG
+    # En desarrollo puedes montar volúmenes para hot-reload
+
+  # Frontend Cliente (Vite)
+  webclient:
+    build: ./WebClient
+    container_name: vite_client
+    environment:
+      - VITE_API_URL=https://37.60.244.154:3010  # <--- IMPORTANTE: Usar el nuevo dominio
+      - VITE_APP_TITLE=My Controller Produccion
+      - VITE_SECRET_KEY=YxoSrXRQTjdOaUGfEXewIOhG
+
+
+volumes:
+  mongo_data:

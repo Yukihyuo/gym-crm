@@ -5,7 +5,11 @@ import tailwindcss from "@tailwindcss/vite"
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss()], server: {
+    host: true,      // Escucha en todas las interfaces de red (necesario para Docker)
+    port: 5176,      // Fija el puerto para que sea predecible
+    strictPort: true // Si el puerto está ocupado, Vite fallará en lugar de cambiarlo
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
