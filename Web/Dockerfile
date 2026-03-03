@@ -1,14 +1,7 @@
-FROM node:22-alpine
-
+FROM node:20-alpine
 WORKDIR /app
-
 COPY package*.json ./
 RUN npm install
-
 COPY . .
-
-# Exponer el puerto de Vite (5173 por defecto)
 EXPOSE 5176
-
-# Importante: --host para que Docker pueda recibir peticiones
-CMD ["npm", "run", "dev", "--", "--host"]
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
