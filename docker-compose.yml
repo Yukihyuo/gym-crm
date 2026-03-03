@@ -45,7 +45,7 @@ services:
 
   # Frontend Cliente (Vite)
   webclient:
-    build: ./WebClient
+    build: ./ClientWeb
     container_name: vite_client
     environment:
       - VITE_API_URL=https://37.60.244.154:3010  # <--- IMPORTANTE: Usar el nuevo dominio
