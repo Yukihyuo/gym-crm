@@ -76,6 +76,25 @@ export const API_ENDPOINTS = {
     DELETE: (storeId: string, productId: string) => `${API_URL}v1/products/${storeId}/delete/${productId}`
   },
 
+  // Subscriptions endpoints
+  SUBSCRIPTIONS: {
+    CREATE: `${API_URL}v1/subscriptions/create`,
+    GET_BY_BRAND: (brandId: string) => `${API_URL}v1/subscriptions/brand/${brandId}`,
+    GET_BY_ID: (subscriptionId: string) => `${API_URL}v1/subscriptions/getById/${subscriptionId}`,
+    UPDATE: (subscriptionId: string) => `${API_URL}v1/subscriptions/update/${subscriptionId}`,
+    DELETE: (subscriptionId: string) => `${API_URL}v1/subscriptions/delete/${subscriptionId}`
+  },
+
+  // Subscriptions assignments endpoints
+  SUBSCRIPTIONS_ASSIGNMENTS: {
+    CREATE: `${API_URL}v1/subscriptions-assignments/create`,
+    GET_BY_BRAND: (brandId: string) => `${API_URL}v1/subscriptions-assignments/brand/${brandId}`,
+    GET_BY_CLIENT: (clientId: string) => `${API_URL}v1/subscriptions-assignments/client/${clientId}`,
+    GET_BY_ID: (assignmentId: string) => `${API_URL}v1/subscriptions-assignments/getById/${assignmentId}`,
+    UPDATE: (assignmentId: string) => `${API_URL}v1/subscriptions-assignments/update/${assignmentId}`,
+    DELETE: (assignmentId: string) => `${API_URL}v1/subscriptions-assignments/delete/${assignmentId}`
+  },
+
   // Sales endpoints
   SALES: {
     CREATE: `${API_URL}v1/sales/create`,

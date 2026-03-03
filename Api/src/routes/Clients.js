@@ -1,7 +1,11 @@
 import express from "express"
 import bcrypt from "bcrypt"
+import jwt from "jsonwebtoken"
 import Client from "../models/Client.js"
 import Store from "../models/Store.js"
+import Visit from "../models/Visit.js"
+import SubscriptionAssignment from "../models/SubscriptionAssignment.js"
+
 
 const router = express.Router()
 
@@ -90,31 +94,22 @@ router.post('/create', async (req, res) => {
   }
 });
 
+// ===================== Endpoints de inicio de sesión de cliente =====================
 // Login - Iniciar sesión de cliente
 router.post('/login', async (req, res) => {
   try {
-    const { username, password, storeId } = req.body;
+    const { username, password } = req.body;
 
     // Validar campos
-    if (!username || !password || !storeId) {
+    if (!username || !password) {
       return res.status(400).json({
-        message: 'Username, contraseña y ID de tienda son requeridos'
-      });
-    }
-
-    // Buscar la tienda para obtener el brandId
-    const store = await Store.findById(storeId);
-
-    if (!store) {
-      return res.status(404).json({
-        message: 'Tienda no encontrada'
+        message: 'Username/email y contraseña son requeridos'
       });
     }
 
     // Buscar cliente por username o email
     const client = await Client.findOne({
-      $or: [{ username }, { email: username }],
-      brandId: store.brandId
+      $or: [{ username }, { email: username }]
     });
 
     if (!client) {
@@ -139,8 +134,19 @@ router.post('/login', async (req, res) => {
       });
     }
 
+    const token = jwt.sign(
+      {
+        userId: client._id,
+        username: client.username,
+        email: client.email,
+      },
+      process.env.jwtSecret || 'client-login-dev-secret',
+      { expiresIn: '120d' }
+    );
+
     res.status(200).json({
       message: 'Login exitoso',
+      token,
       client: {
         id: client._id,
         username: client.username,
@@ -159,6 +165,8 @@ router.post('/login', async (req, res) => {
     });
   }
 });
+
+// ===================== Endpoints de gestión de clientes =====================
 
 // GetAll - Obtener todos los clientes
 router.get('/getAll', async (req, res) => {
@@ -441,5 +449,75 @@ router.post('/changePassword', async (req, res) => {
     });
   }
 });
+
+router.get('/assistance/:clientId', async (req, res) => {
+  try {
+    const { clientId } = req.params;
+
+    const visits = await Visit.find({ clientId })
+
+    res.status(200).json({
+      message: 'Asistencias del cliente obtenidas exitosamente',
+      clientId,
+      count: visits.length,
+      visits
+    });
+  }
+  catch (error) {
+    console.error('Error en getAssistance:', error);
+    res.status(500).json({
+      message: 'Error al obtener asistencias del cliente',
+      error: error.message
+    })
+  }
+
+})
+
+router.post('/login-qr', async (req, res) => {
+  try {
+    const { qrData } = req.body;
+
+    const data = jwt.decode(qrData,
+      process.env.jwtSecret || 'client-login-dev-secret',)
+
+    const client = await Client.findById(data.userId)
+
+    if (!client) {
+      return res.status(404).json({
+        message: 'Cliente no encontrado'
+      });
+    }
+
+    const sub = await SubscriptionAssignment.findOne({ clientId: client._id, status: 'active' })
+    if (!sub) {
+      return res.status(403).json({
+        message: 'El cliente no tiene una suscripción activa'
+      });
+    }
+
+
+    console.log(data)
+
+    Visit.create({
+      brandId: client.brandId,
+      storeId: client.storeId,
+      clientId: client._id,
+      accessMethod: 'qr',
+      isTrial: sub.isTrial
+    });
+
+    res.status(200).json({
+      message: 'QR decodificado exitosamente',
+      success: true,
+    })
+
+  } catch (error) {
+    console.error('Error en login-qr:', error);
+    res.status(500).json({
+      message: 'Error al iniciar sesión con QR',
+      error: error.message
+    });
+  }
+})
 
 export const routeConfig = { path: "/v1/clients", router }

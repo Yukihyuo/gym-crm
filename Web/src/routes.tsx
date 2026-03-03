@@ -14,6 +14,8 @@ import ProtectedModule from "./components/global/ProtectedModule";
 import Stores from "./routes/stores/page";
 import Staff from "./routes/staff/page";
 import Clients from "./routes/clients/page";
+import Subscriptions from "@/routes/subscriptions/page";
+import SubscriptionsAssignment from "@/routes/subscriptionsAssignment/page";
 
 const router = createBrowserRouter([
   {
@@ -38,6 +40,18 @@ const router = createBrowserRouter([
     path: "/stores",
     element: <ProtectedModule page="Stores" type="read" method="block" >
       <Stores />
+    </ProtectedModule>,
+  },
+  {
+    path: "/subscriptions",
+    element: <ProtectedModule page="Stores" type="read" method="block" >
+      <Subscriptions />
+    </ProtectedModule>,
+  },
+  {
+    path: "/subscriptions-assignment",
+    element: <ProtectedModule page="Stores" type="read" method="block" >
+      <SubscriptionsAssignment />
     </ProtectedModule>,
   },
   {

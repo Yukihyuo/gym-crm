@@ -47,6 +47,14 @@ const data = {
           url: "/pages",
         },
         {
+          title: "Suscripciones",
+          url: "/subscriptions",
+        },
+        {
+          title: "Asignación de suscripciones",
+          url: "/subscriptions-assignment",
+        },
+        {
           title: "Tiendas",
           url: "/stores",
         },

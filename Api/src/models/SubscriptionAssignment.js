@@ -5,17 +5,39 @@ const subscriptionAssignmentSchema = new mongoose.Schema({
     type: String,
     default: () => new mongoose.Types.ObjectId().toString()
   },
-  userId: {
+  brandId: {
     type: String,
     required: true,
+    ref: 'Brand'
   },
-  subscriptionId: {
+  storeId: { // La sucursal donde se registró físicamente por primera vez
     type: String,
     required: true,
+    ref: 'Store'
+  },
+  clientId: {
+    type: String,
+    ref: 'Client'
+  },
+  planId: {
+    type: String,
+    ref: 'Subscription'
+  },
+  startDate: {
+    type: Date,
+    default: Date.now
   },
   endDate: {
-    type: Date,
-    required: true,
+    type: Date
+  },
+  pricePaid: {
+    type: Number,
+    required: true
+  },
+  status: {
+    type: String,
+    enum: ['active', 'expired', 'cancelled'],
+    default: 'active'
   }
 }, { timestamps: true });
 

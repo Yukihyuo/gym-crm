@@ -30,6 +30,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { useAuthStore } from "@/store/authStore"
+import { AccessClientModal } from "../Clients/AccessClientModal"
 
 export function NavUser({
   user,
@@ -99,6 +100,7 @@ export function NavUser({
                 <CreditCard />
                 Billing
               </DropdownMenuItem>
+              <AccessClientModal/>
               <DropdownMenuItem>
                 <Bell />
                 Notifications
