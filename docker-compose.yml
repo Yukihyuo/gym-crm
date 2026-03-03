@@ -53,5 +53,9 @@ services:
       - VITE_SECRET_KEY=YxoSrXRQTjdOaUGfEXewIOhG
 
 
+networks:
+  app-network:
+    driver: bridge
+
 volumes:
   mongo_data:
