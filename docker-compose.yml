@@ -19,6 +19,8 @@ services:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
+    networks:
+      - app-network
 
   # Backend Express
   api:
@@ -32,6 +34,8 @@ services:
       - "3010:3010"
     depends_on:
       - mongodb
+    networks:
+      - app-network
 
   # Frontend Administrativo (Vite)
   web:
@@ -41,7 +45,8 @@ services:
       - VITE_API_URL=https://37.60.244.154:3010  # <--- IMPORTANTE: Usar el nuevo dominio
       - VITE_APP_TITLE=My Controller Produccion
       - VITE_SECRET_KEY=YxoSrXRQTjdOaUGfEXewIOhG
-    # En desarrollo puedes montar volúmenes para hot-reload
+    networks:
+      - app-network
 
   # Frontend Cliente (Vite)
   webclient:
@@ -51,6 +56,8 @@ services:
       - VITE_API_URL=https://37.60.244.154:3010  # <--- IMPORTANTE: Usar el nuevo dominio
       - VITE_APP_TITLE=My Controller Produccion
       - VITE_SECRET_KEY=YxoSrXRQTjdOaUGfEXewIOhG
+    networks:
+      - app-network
 
 
 networks:

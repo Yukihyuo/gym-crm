@@ -7,7 +7,7 @@ RUN npm install
 
 COPY . .
 
-# Exponer el puerto de Vite (5173 por defecto)
+
 EXPOSE 5177
 
 # Importante: --host para que Docker pueda recibir peticiones
