@@ -457,7 +457,7 @@ router.get('/assistance/:clientId', async (req, res) => {
     const visits = await Visit.find({ clientId })
 
     res.status(200).json({
-      message: 'Asistencias del cliente obtenidas exitosamente',
+      message: 'Asistencias del cliente obtenidas exitosamente.',
       clientId,
       count: visits.length,
       visits
