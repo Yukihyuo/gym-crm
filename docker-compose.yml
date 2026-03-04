@@ -19,6 +19,9 @@ services:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=Sys73mUs3r
+      - MONGO_INITDB_ROOT_PASSWORD=AddzTMW4ciJ5CzZiiMBF
     networks:
       - app-network
 
@@ -27,7 +30,7 @@ services:
     build: ./Api
     container_name: express_api
     environment:
-      - databaseUrl=mongodb://mongodb:27017/gimnasios
+      - databaseUrl=mongodb://Sys73mUs3r:AddzTMW4ciJ5CzZiiMBF@mongodb:27017/gimnasios?authSource=admin
       - jwtSecret=YxoSrXRQTjdOaUGfEXewIOhG
       - PORT=3010
     ports:
