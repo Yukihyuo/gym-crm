@@ -89,9 +89,9 @@ export function LoginForm({
               <div className="flex size-8 items-center justify-center rounded-md">
                 <GalleryVerticalEnd className="size-6" />
               </div>
-              <span className="sr-only">Acme Inc.</span>
+              <span className="sr-only">Gym Sync.</span>
             </a>
-            <h1 className="text-xl font-bold">Welcome to Acme Inc.</h1>
+            <h1 className="text-xl font-bold">Welcome to Gym Sync.</h1>
             <FieldDescription>
               Don&apos;t have an account? <a href="#">Sign up</a>
             </FieldDescription>
