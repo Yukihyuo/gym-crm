@@ -1,5 +1,5 @@
 // Configuración de la API
-export const API_URL = 'http://localhost:3010/';
+export const API_URL = 'https://api-yukihyuo.duckdns.org/';
 
 
 // Endpoints
