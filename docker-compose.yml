@@ -42,7 +42,7 @@ services:
     build: ./Web
     container_name: vite_web
     environment:
-      - VITE_API_URL=https://37.60.244.154:3010  # <--- IMPORTANTE: Usar el nuevo dominio
+      - VITE_API_URL=https://api-yukihyuo.duckdns.org/  # <--- IMPORTANTE: Usar el nuevo dominio
       - VITE_APP_TITLE=My Controller Produccion
       - VITE_SECRET_KEY=YxoSrXRQTjdOaUGfEXewIOhG
     networks:
@@ -53,7 +53,7 @@ services:
     build: ./ClientWeb
     container_name: vite_client
     environment:
-      - VITE_API_URL=https://37.60.244.154:3010  # <--- IMPORTANTE: Usar el nuevo dominio
+      - VITE_API_URL=https://api-yukihyuo.duckdns.org/  # <--- IMPORTANTE: Usar el nuevo dominio
       - VITE_APP_TITLE=My Controller Produccion
       - VITE_SECRET_KEY=YxoSrXRQTjdOaUGfEXewIOhG
     networks:
