@@ -5,10 +5,8 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
   Field,
-  FieldDescription,
   FieldGroup,
   FieldLabel,
-  FieldSeparator,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { useAuthStore, type Access, type User } from "@/store/authStore"
@@ -88,7 +86,7 @@ export function LoginForm({
           <Input 
             id="username" 
             type="text" 
-            placeholder="usuario123" 
+            placeholder="Usuario" 
             required 
             value={username}
             onChange={(e) => setUsername(e.target.value)}
@@ -108,6 +106,7 @@ export function LoginForm({
           <Input 
             id="password" 
             type="password" 
+            placeholder="Contraseña"
             required 
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -119,7 +118,7 @@ export function LoginForm({
             {isLoading ? "Iniciando sesión..." : "Iniciar sesión"}
           </Button>
         </Field>
-        <FieldSeparator>O continúa con</FieldSeparator>
+        {/* <FieldSeparator>O continúa con</FieldSeparator>
         <Field>
           <Button variant="outline" type="button" disabled={isLoading}>
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
@@ -136,7 +135,7 @@ export function LoginForm({
               Regístrate
             </a>
           </FieldDescription>
-        </Field>
+        </Field> */}
       </FieldGroup>
     </form>
   )

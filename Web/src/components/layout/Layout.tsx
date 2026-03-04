@@ -13,8 +13,9 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar"
+import { Outlet } from "react-router-dom"
 
-export default function Layout({ children }: { children: React.ReactNode  }) {
+export default function Layout({ children }: { children?: React.ReactNode }) {
   return (
     <SidebarProvider>
       <AppSidebar />
@@ -41,7 +42,7 @@ export default function Layout({ children }: { children: React.ReactNode  }) {
             </Breadcrumb>
           </div>
         </header>
-        <main className="p-2" >{children}</main>
+        <main className="p-2" >{children ?? <Outlet />}</main>
       </SidebarInset>
     </SidebarProvider>
   )

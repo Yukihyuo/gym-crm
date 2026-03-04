@@ -83,28 +83,28 @@ export function NavUser({
                 </div>
               </div>
             </DropdownMenuLabel>
-            <DropdownMenuSeparator />
+            {/* <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem>
                 <Sparkles />
                 Upgrade to Pro
               </DropdownMenuItem>
-            </DropdownMenuGroup>
+            </DropdownMenuGroup> */}
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
+              {/* <DropdownMenuItem>
                 <BadgeCheck />
                 Account
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <CreditCard />
                 Billing
-              </DropdownMenuItem>
+              </DropdownMenuItem> */}
               <AccessClientModal/>
-              <DropdownMenuItem>
+              {/* <DropdownMenuItem>
                 <Bell />
                 Notifications
-              </DropdownMenuItem>
+              </DropdownMenuItem> */}
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={clearAuth} >

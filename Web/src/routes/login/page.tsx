@@ -1,4 +1,4 @@
-import { GalleryVerticalEnd } from "lucide-react"
+import { Dumbbell } from "lucide-react"
 
 import { LoginForm } from "@/components/login/login-form"
 
@@ -9,9 +9,9 @@ export default function LoginPage() {
         <div className="flex justify-center gap-2 md:justify-start">
           <a href="#" className="flex items-center gap-2 font-medium">
             <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
-              <GalleryVerticalEnd className="size-4" />
+              <Dumbbell className="size-4" />
             </div>
-            Acme Inc.
+            Gym Sync.
           </a>
         </div>
         <div className="flex flex-1 items-center justify-center">
@@ -22,7 +22,7 @@ export default function LoginPage() {
       </div>
       <div className="bg-muted relative hidden lg:block">
         <img
-          src="/placeholder.svg"
+          src="https://cdn.pixabay.com/photo/2015/01/09/11/22/fitness-594143_1280.jpg"
           alt="Image"
           className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
         />

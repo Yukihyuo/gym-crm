@@ -12,7 +12,7 @@ export default function Home() {
       </div>
       <div className='flex items-center justify-center'>
         <Avatar className='w-40 h-40' >
-          <AvatarImage src="https://github.com/shadcn.png" />
+          <AvatarImage src="https://static.vecteezy.com/system/resources/thumbnails/009/292/244/small/default-avatar-icon-of-social-media-user-vector.jpg" />
           <AvatarFallback>CN</AvatarFallback>
         </Avatar>
       </div>

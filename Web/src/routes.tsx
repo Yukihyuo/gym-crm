@@ -1,5 +1,4 @@
-import { createBrowserRouter } from "react-router";
-import { RouterProvider } from "react-router/dom";
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
 
 //Paginas
 import Dashboard from "./routes/dashboard/page";
@@ -19,78 +18,83 @@ import SubscriptionsAssignment from "@/routes/subscriptionsAssignment/page";
 
 const router = createBrowserRouter([
   {
-    path: "/",
-    element: <ProtectedModule page="Dashboard" type="read" method="block"  >
-      <Dashboard />
-    </ProtectedModule>,
-  },
-  {
-    path: "/roles",
-    element: <ProtectedModule page="Roles" type="read" method="block" >
-      <Roles />
-    </ProtectedModule>,
-  },
-  {
-    path: "/pages",
-    element: <ProtectedModule page="Pages" type="read" method="block" >
-      <Pages />
-    </ProtectedModule>,
-  },
-  {
-    path: "/stores",
-    element: <ProtectedModule page="Stores" type="read" method="block" >
-      <Stores />
-    </ProtectedModule>,
-  },
-  {
-    path: "/subscriptions",
-    element: <ProtectedModule page="Stores" type="read" method="block" >
-      <Subscriptions />
-    </ProtectedModule>,
-  },
-  {
-    path: "/subscriptions-assignment",
-    element: <ProtectedModule page="Stores" type="read" method="block" >
-      <SubscriptionsAssignment />
-    </ProtectedModule>,
-  },
-  {
-    path: "/staff",
-    element: <ProtectedModule page="Staff" type="read" method="block" >
-      <Staff />
-    </ProtectedModule>,
-  }, {
-    path: "/clients",
-    element: <ProtectedModule page="Staff" type="read" method="block" >
-      <Clients />
-    </ProtectedModule>,
-  },
-  {
-    path: "/inventory",
-    element: <ProtectedModule page="Inventory" type="read" method="block" >
-      <Inventory />
-    </ProtectedModule>,
-  },
-  {
-    path: "/sales",
-    element: <ProtectedModule page="Sales" type="read" method="block" >
-      <Sales />
-    </ProtectedModule>,
-  },
-  {
-    path: "/schedule",
-    element: <ProtectedModule page="Schedule" type="read" method="block" >
-      <Schedule />
-    </ProtectedModule>,
-  },
-  {
-    path: "/pruebas",
-    element: <Pruebas />,
+    element: <Layout />,
+    children: [
+      {
+        path: "/",
+        element: <ProtectedModule page="Dashboard" type="read" method="block"  >
+          <Dashboard />
+        </ProtectedModule>,
+      },
+      {
+        path: "/roles",
+        element: <ProtectedModule page="Roles" type="read" method="block" >
+          <Roles />
+        </ProtectedModule>,
+      },
+      {
+        path: "/pages",
+        element: <ProtectedModule page="Pages" type="read" method="block" >
+          <Pages />
+        </ProtectedModule>,
+      },
+      {
+        path: "/stores",
+        element: <ProtectedModule page="Stores" type="read" method="block" >
+          <Stores />
+        </ProtectedModule>,
+      },
+      {
+        path: "/subscriptions",
+        element: <ProtectedModule page="Stores" type="read" method="block" >
+          <Subscriptions />
+        </ProtectedModule>,
+      },
+      {
+        path: "/subscriptions-assignment",
+        element: <ProtectedModule page="Stores" type="read" method="block" >
+          <SubscriptionsAssignment />
+        </ProtectedModule>,
+      },
+      {
+        path: "/staff",
+        element: <ProtectedModule page="Staff" type="read" method="block" >
+          <Staff />
+        </ProtectedModule>,
+      }, {
+        path: "/clients",
+        element: <ProtectedModule page="Staff" type="read" method="block" >
+          <Clients />
+        </ProtectedModule>,
+      },
+      {
+        path: "/inventory",
+        element: <ProtectedModule page="Inventory" type="read" method="block" >
+          <Inventory />
+        </ProtectedModule>,
+      },
+      {
+        path: "/sales",
+        element: <ProtectedModule page="Sales" type="read" method="block" >
+          <Sales />
+        </ProtectedModule>,
+      },
+      {
+        path: "/schedule",
+        element: <ProtectedModule page="Schedule" type="read" method="block" >
+          <Schedule />
+        </ProtectedModule>,
+      },
+      {
+        path: "/pruebas",
+        element: <Pruebas />,
+      },
+    ],
   },
 ]);
 
 
 
 export default function Routes() {
-  return <Layout><RouterProvider router={router} /></Layout>;
+  return <RouterProvider router={router} />;
 }

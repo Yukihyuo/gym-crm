@@ -57,7 +57,7 @@ const data = {
         {
           title: "Tiendas",
           url: "/stores",
-        },
+        }
       ],
     },
   ],
@@ -85,7 +85,7 @@ const data = {
       name: "Horarios",
       url: "/schedule",
       icon: CalendarDays,
-    },
+    }
   ],
 }
 
