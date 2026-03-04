@@ -97,7 +97,7 @@ export function LoginForm({
             </FieldDescription>
           </div>
           <Field>
-            <FieldLabel htmlFor="username">Usuario o Email</FieldLabel>
+            <FieldLabel htmlFor="username">Usuario</FieldLabel>
             <Input
               id="username"
               type="text"
@@ -126,7 +126,7 @@ export function LoginForm({
               {loading ? "Ingresando..." : "Login"}
             </Button>
           </Field>
-          <FieldSeparator>Or</FieldSeparator>
+          {/* <FieldSeparator>Or</FieldSeparator>
           <Field className="grid gap-4 sm:grid-cols-2">
             <Button variant="outline" type="button">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
@@ -146,13 +146,13 @@ export function LoginForm({
               </svg>
               Continue with Google
             </Button>
-          </Field>
+          </Field> */}
         </FieldGroup>
       </form>
-      <FieldDescription className="px-6 text-center">
+      {/* <FieldDescription className="px-6 text-center">
         By clicking continue, you agree to our <a href="#">Terms of Service</a>{" "}
         and <a href="#">Privacy Policy</a>.
-      </FieldDescription>
+      </FieldDescription> */}
     </div>
   )
 }
