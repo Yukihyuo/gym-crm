@@ -55,7 +55,7 @@ export function LoginForm({
 
     setLoading(true)
     try {
-      const response = await axios.post<LoginResponse>(`${API_URL}/v1/clients/login`, {
+      const response = await axios.post<LoginResponse>(`${API_URL}v1/clients/login`, {
         username,
         password,
       })
@@ -73,7 +73,7 @@ export function LoginForm({
     } catch (error: any) {
       setErrorMessage(error.response?.data?.message || "No se pudo iniciar sesión")
     } finally {
-      setLoading(false)
+      setLoading(false) 
     }
   }
 
