@@ -14,7 +14,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { useUserStore } from "@/store/userStore"
 
-const API_URL = "http://192.168.1.69:3010"
+const API_URL = "https://api-yukihyuo.duckdns.org/"
 
 interface LoginResponse {
   message: string
