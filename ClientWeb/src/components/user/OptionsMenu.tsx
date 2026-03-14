@@ -9,8 +9,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
-import { Menu, } from "lucide-react"
+import LogOutButton from "@/components/user/LogOutButton"
+
+import { Dumbbell, Menu, Salad, } from "lucide-react"
 import { QRUserCode } from "./QRUserCode"
+import { Link } from "react-router-dom"
 
 export function OptionsMenu() {
   return (
@@ -22,16 +25,20 @@ export function OptionsMenu() {
       </DropdownMenuTrigger>
       <DropdownMenuContent>
         <DropdownMenuGroup>
-          <DropdownMenuLabel>My Account</DropdownMenuLabel>
+          <DropdownMenuLabel>Opciones</DropdownMenuLabel>
+          <DropdownMenuSeparator />
           <QRUserCode />
-          <DropdownMenuItem>Profile</DropdownMenuItem>
-          <DropdownMenuItem>Billing</DropdownMenuItem>
-          <DropdownMenuItem>Settings</DropdownMenuItem>
+          <Link to="/trainings" >
+            <DropdownMenuItem> <Dumbbell /> Entrenamientos</DropdownMenuItem>
+          </Link>
+          <Link to="/diets" >
+            <DropdownMenuItem><Salad /> Dietas</DropdownMenuItem>
+          </Link>
+          {/* <DropdownMenuItem>Settings</DropdownMenuItem> */}
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem>GitHub</DropdownMenuItem>
-        <DropdownMenuItem>Support</DropdownMenuItem>
-        <DropdownMenuItem disabled>API</DropdownMenuItem>
+        <LogOutButton />
+        {/* <DropdownMenuItem disabled>API</DropdownMenuItem> */}
       </DropdownMenuContent>
     </DropdownMenu>
   )

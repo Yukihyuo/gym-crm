@@ -1,12 +1,7 @@
 "use client"
-
 import {
-  BadgeCheck,
-  Bell,
   ChevronsUpDown,
-  CreditCard,
   LogOut,
-  Sparkles,
 } from "lucide-react"
 
 import {
@@ -109,7 +104,7 @@ export function NavUser({
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={clearAuth} >
               <LogOut />
-              Log out
+              Cerrar sesión
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

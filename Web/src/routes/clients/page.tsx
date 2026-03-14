@@ -28,6 +28,7 @@ import {
 import { useAuthStore } from "@/store/authStore"
 import NewClientModal from '@/components/Clients/NewClientModal'
 import DetailsClientModal from '@/components/Clients/DetailsClientModal'
+import ViewClientDiets from '@/components/diets/ViewClientDiets'
 
 
 
@@ -146,6 +147,7 @@ export default function Page() {
               <DropdownMenuLabel>Acciones</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DetailsClientModal clientId={row.original._id} onClientUpdated={asyncLoad} />
+              <ViewClientDiets clientId={row.original._id} />
               <DropdownMenuSeparator />
               <div
                 className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 text-red-600 hover:bg-red-50"

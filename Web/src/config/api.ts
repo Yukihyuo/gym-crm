@@ -1,5 +1,5 @@
 // Configuración de la API
-export const API_URL = 'https://api-yukihyuo.duckdns.org/';
+export const API_URL = import.meta.env.VITE_API_URL;
 
 
 // Endpoints
@@ -112,6 +112,15 @@ export const API_ENDPOINTS = {
     GET_BY_USER_ID: (storeId: string, userId: string) => `${API_URL}v1/schedules/${storeId}/getByUserId/${userId}`,
     UPDATE: (storeId: string, scheduleId: string) => `${API_URL}v1/schedules/${storeId}/update/${scheduleId}`,
     DELETE: (storeId: string, scheduleId: string) => `${API_URL}v1/schedules/${storeId}/delete/${scheduleId}`
+  },
+
+  // Diets endpoints
+  DIETS: {
+    CREATE: `${API_URL}v1/diets/create`,
+    GET_ALL: (clientId: string) => `${API_URL}v1/diets/${clientId}/getAll`,
+    GET_BY_ID: (clientId: string, dietId: string) => `${API_URL}v1/diets/${clientId}/getById/${dietId}`,
+    UPDATE: (clientId: string, dietId: string) => `${API_URL}v1/diets/${clientId}/update/${dietId}`,
+    DELETE: (clientId: string, dietId: string) => `${API_URL}v1/diets/${clientId}/delete/${dietId}`
   },
 
   // Analytics endpoints

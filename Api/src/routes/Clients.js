@@ -476,11 +476,8 @@ router.get('/assistance/:clientId', async (req, res) => {
 router.post('/login-qr', async (req, res) => {
   try {
     const { qrData } = req.body;
-
-    const data = jwt.decode(qrData,
-      process.env.jwtSecret || 'client-login-dev-secret',)
-
-    const client = await Client.findById(data.userId)
+    console.log('QR Data recibida:', qrData)
+    const client = await Client.findById(qrData)
 
     if (!client) {
       return res.status(404).json({
@@ -494,9 +491,6 @@ router.post('/login-qr', async (req, res) => {
         message: 'El cliente no tiene una suscripción activa'
       });
     }
-
-
-    console.log(data)
 
     Visit.create({
       brandId: client.brandId,

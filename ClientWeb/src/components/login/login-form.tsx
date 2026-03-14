@@ -1,4 +1,4 @@
-import { GalleryVerticalEnd } from "lucide-react"
+import { Dumbbell } from "lucide-react"
 import { useState, type FormEvent } from "react"
 import axios from "axios"
 
@@ -9,12 +9,11 @@ import {
   FieldDescription,
   FieldGroup,
   FieldLabel,
-  FieldSeparator,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { useUserStore } from "@/store/userStore"
 
-const API_URL = "https://api-yukihyuo.duckdns.org/"
+const API_URL = import.meta.env.VITE_API_URL
 
 interface LoginResponse {
   message: string
@@ -71,6 +70,7 @@ export function LoginForm({
       })
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
+      console.log(error)
       setErrorMessage(error.response?.data?.message || "No se pudo iniciar sesión")
     } finally {
       setLoading(false) 
@@ -87,21 +87,19 @@ export function LoginForm({
               className="flex flex-col items-center gap-2 font-medium"
             >
               <div className="flex size-8 items-center justify-center rounded-md">
-                <GalleryVerticalEnd className="size-6" />
+                <Dumbbell className="size-6" />
               </div>
               <span className="sr-only">Gym Sync.</span>
             </a>
-            <h1 className="text-xl font-bold">Welcome to Gym Sync.</h1>
-            <FieldDescription>
-              Don&apos;t have an account? <a href="#">Sign up</a>
-            </FieldDescription>
+            <h1 className="text-xl font-bold">Gym Sync.</h1>
+
           </div>
           <Field>
             <FieldLabel htmlFor="username">Usuario</FieldLabel>
             <Input
               id="username"
               type="text"
-              placeholder="usuario o correo"
+              placeholder="usuario"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
@@ -112,7 +110,7 @@ export function LoginForm({
             <Input
               id="password"
               type="password"
-              placeholder="••••••••"
+              placeholder="contraseña"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -123,7 +121,7 @@ export function LoginForm({
           ) : null}
           <Field>
             <Button type="submit" disabled={loading}>
-              {loading ? "Ingresando..." : "Login"}
+              {loading ? "Ingresando..." : "Iniciar sesión"}
             </Button>
           </Field>
           {/* <FieldSeparator>Or</FieldSeparator>

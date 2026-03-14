@@ -14,15 +14,16 @@ import { DropdownMenuItem } from "../ui/dropdown-menu"
 
 import { QRCodeSVG } from 'qrcode.react';
 import { useUserStore } from "@/store/userStore";
+import { QrCode } from "lucide-react";
 
 export function QRUserCode() {
-  const { token } = useUserStore()
+  const { user } = useUserStore()
 
   return (
     <Dialog>
       <DialogTrigger asChild>
         <DropdownMenuItem onSelect={(event) => event.preventDefault()}>
-          QR de usuario
+        <QrCode /> QR de usuario
         </DropdownMenuItem>
       </DialogTrigger>
 
@@ -35,7 +36,7 @@ export function QRUserCode() {
         </DialogHeader>
 
         <div className="flex justify-center py-2">
-          <QRCodeSVG value={token || "Sin token"} size={200} />
+          <QRCodeSVG value={user?.id || "Sin token"} size={200} />
         </div>
 
         <DialogFooter>

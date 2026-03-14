@@ -182,7 +182,7 @@ export default function AssistanceComponent({ userId }: Props) {
           <div className='grid grid-cols-7 gap-1'>
             {calendarCells.map((cell) => {
               if (!cell.day) {
-                return <div key={cell.key} className='h-10 rounded-md' />
+                return <div key={cell.key} className='h-8 rounded-md' />
               }
 
               const hasVisit = visitDays.has(cell.day)
@@ -190,7 +190,7 @@ export default function AssistanceComponent({ userId }: Props) {
               return (
                 <div
                   key={cell.key}
-                  className={`flex h-10 items-center justify-center rounded-md text-sm ${hasVisit
+                  className={`flex h-8 items-center justify-center rounded-md text-sm ${hasVisit
                     ? 'bg-green-100 text-green-700 border-green-200'
                     : 'bg-background text-foreground border-border'
                     }`}
