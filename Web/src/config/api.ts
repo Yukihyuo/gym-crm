@@ -8,6 +8,7 @@ export const API_ENDPOINTS = {
 
   BRANDS: {
     CREATE: `${API_URL}v1/brands/create`,
+    CREATE_FULL: `${API_URL}v1/brands/createFullBrand`,
     GET_ALL: `${API_URL}v1/brands/getAll`,
     GET_BY_ID: (brandId: string) => `${API_URL}v1/brands/getById/${brandId}`,
     UPDATE: (brandId: string) => `${API_URL}v1/brands/update/${brandId}`,

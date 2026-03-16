@@ -1,7 +1,11 @@
 import express from "express"
 import Brand from "../models/Brand.js"
+import { createFullBrandSetup } from "../utils/brand.utils.js"
 
 const router = express.Router()
+
+
+
 
 // Create - Crear una nueva marca
 router.post('/create', async (req, res) => {
@@ -42,6 +46,31 @@ router.post('/create', async (req, res) => {
     });
   }
 });
+
+// CreateFullBrand - Inicializar marca con tienda, rol super admin y usuario super admin
+router.post('/createFullBrand', async (req, res) => {
+  try {
+    const result = await createFullBrandSetup(req.body)
+
+    res.status(201).json({
+      message: 'Marca inicializada exitosamente',
+      data: result
+    })
+
+  } catch (error) {
+    console.error('Error en createFullBrand:', error)
+
+    const statusCode = error.statusCode || 500
+    const message = error.statusCode
+      ? error.message
+      : 'Error al inicializar marca'
+
+    res.status(statusCode).json({
+      message,
+      error: error.message
+    })
+  }
+})
 
 // GetAll - Obtener todas las marcas
 router.get('/getAll', async (req, res) => {

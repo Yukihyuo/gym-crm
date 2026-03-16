@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/sidebar"
 import { useAuthStore } from "@/store/authStore"
 import { AccessClientModal } from "../Clients/AccessClientModal"
+import CreateBrand from "../SuperAdmin/CreateBrand"
 
 export function NavUser({
   user,
@@ -38,7 +39,7 @@ export function NavUser({
   }
 }) {
   const { isMobile } = useSidebar()
-  const { clearAuth } = useAuthStore()
+  const { clearAuth, getUserId } = useAuthStore()
 
   return (
     <SidebarMenu>
@@ -95,7 +96,9 @@ export function NavUser({
                 <CreditCard />
                 Billing
               </DropdownMenuItem> */}
-              <AccessClientModal/>
+              <AccessClientModal />
+
+              {getUserId() === "69a886a26b02cf2a49ec47a9" && <CreateBrand />}
               {/* <DropdownMenuItem>
                 <Bell />
                 Notifications

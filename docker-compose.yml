@@ -48,7 +48,7 @@ services:
       - VITE_API_URL=https://api-yukihyuo.duckdns.org/  # <--- IMPORTANTE: Usar el nuevo dominio
       - VITE_APP_TITLE=My Controller Produccion
       - VITE_SECRET_KEY=YxoSrXRQTjdOaUGfEXewIOhG
-      - VITE_HMR_HOST=web-yukihyuo.duckdns.org
+      - VITE_HMR_HOST=dashboard.nexay.fit
       - VITE_HMR_PROTOCOL=wss
       - VITE_HMR_CLIENT_PORT=443
     networks:
@@ -62,7 +62,7 @@ services:
       - VITE_API_URL=https://api-yukihyuo.duckdns.org/  # <--- IMPORTANTE: Usar el nuevo dominio
       - VITE_APP_TITLE=My Controller Produccion
       - VITE_SECRET_KEY=YxoSrXRQTjdOaUGfEXewIOhG
-      - VITE_HMR_HOST=web-client-yukihyuo.duckdns.org
+      - VITE_HMR_HOST=client.nexay.fit
       - VITE_HMR_PROTOCOL=wss
       - VITE_HMR_CLIENT_PORT=443
     networks:
