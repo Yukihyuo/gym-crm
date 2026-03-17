@@ -19,12 +19,14 @@ const clientSchema = new mongoose.Schema({
   username: {
     type: String,
     required: true,
-    unique: true
+    unique: true,
+    trim: true
   },
   email: {
     type: String,
     required: true,
-    unique: true
+    unique: true,
+    trim: true
   },
   password: {
     type: String,
@@ -41,7 +43,10 @@ const clientSchema = new mongoose.Schema({
     },
     phone: {
       type: String,
-      required: false
+      required: false, // No es obligatorio
+      unique: true,    // Si existe, debe ser único
+      sparse: true,    // Permite múltiples registros con valor 'null' o 'undefined'
+      trim: true
     }
   },
   status: {
@@ -50,4 +55,6 @@ const clientSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-export default mongoose.model('Client', clientSchema);
+const Client = mongoose.model('Client', clientSchema);
+
+export default Client;

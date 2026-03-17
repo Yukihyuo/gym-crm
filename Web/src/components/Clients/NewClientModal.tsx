@@ -19,8 +19,11 @@ import { Label } from "@/components/ui/label"
 import { API_ENDPOINTS } from "@/config/api"
 import { useAuthStore } from "@/store/authStore"
 
-// Schema de validación con Zod
 const clientSchema = z.object({
+  username: z.string()
+    .min(3, "El usuario debe tener al menos 3 caracteres")
+    .max(30, "El usuario no puede exceder 30 caracteres")
+    .regex(/^[a-zA-Z0-9_]+$/, "El usuario solo puede contener letras, números y guiones bajos"),
   email: z.string()
     .min(1, "El email es requerido")
     .email("Email inválido"),
@@ -53,28 +56,17 @@ export default function NewClientModal({ onSuccess, trigger }: NewClientModalPro
     handleSubmit,
     formState: { errors },
     reset,
-    watch,
   } = useForm<ClientFormValues>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(clientSchema) as any,
     defaultValues: {
+      username: "",
       email: "",
       names: "",
       lastNames: "",
       phone: "",
     },
   })
-
-  const emailValue = watch("email")
-
-  // Generar username desde email (texto antes del @)
-  const generateUsername = (email: string): string => {
-    const atIndex = email.indexOf('@')
-    if (atIndex > 0) {
-      return email.substring(0, atIndex)
-    }
-    return email
-  }
 
   const onSubmit = async (data: ClientFormValues) => {
     if (!activeStoreId) {
@@ -85,25 +77,22 @@ export default function NewClientModal({ onSuccess, trigger }: NewClientModalPro
     setIsLoading(true)
     try {
       const response = await axios.post(API_ENDPOINTS.CLIENTS.REGISTER, {
+        username: data.username,
         email: data.email,
         storeId: activeStoreId,
         profile: {
           names: data.names,
           lastNames: data.lastNames,
-          phone: data.phone || ''
-        }
+          phone: data.phone || "",
+        },
       })
 
-      const username = generateUsername(data.email)
-      
       toast.success(response.data.message || "Cliente creado exitosamente")
-      toast.info(`Usuario: ${username} | Contraseña: ${username}`, { autoClose: 10000 })
-      
-      // Reset form y cerrar modal
+      toast.info(`Usuario: ${data.username} | Contraseña: ${data.username}`, { autoClose: 10000 })
+
       reset()
       setOpen(false)
-      
-      // Callback de éxito
+
       if (onSuccess) {
         onSuccess()
       }
@@ -136,12 +125,29 @@ export default function NewClientModal({ onSuccess, trigger }: NewClientModalPro
         <DialogHeader>
           <DialogTitle>Crear Nuevo Cliente</DialogTitle>
           <DialogDescription>
-            Completa los datos para registrar un nuevo cliente. El usuario y contraseña se generarán automáticamente desde el email.
+            Completa los datos para registrar un nuevo cliente. Debes ingresar el username manualmente.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className="grid gap-4 py-4">
-            {/* Campo Email */}
+            <div className="grid gap-2">
+              <Label htmlFor="username">
+                Usuario <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="username"
+                placeholder="cliente123"
+                {...register("username")}
+                disabled={isLoading}
+              />
+              {errors.username && (
+                <p className="text-sm text-red-500">{errors.username.message}</p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Solo letras, números y guiones bajos
+              </p>
+            </div>
+
             <div className="grid gap-2">
               <Label htmlFor="email">
                 Email <span className="text-red-500">*</span>
@@ -156,14 +162,8 @@ export default function NewClientModal({ onSuccess, trigger }: NewClientModalPro
               {errors.email && (
                 <p className="text-sm text-red-500">{errors.email.message}</p>
               )}
-              {emailValue && emailValue.includes('@') && (
-                <p className="text-xs text-green-600">
-                  Usuario generado: {generateUsername(emailValue)}
-                </p>
-              )}
             </div>
 
-            {/* Campo Nombres */}
             <div className="grid gap-2">
               <Label htmlFor="names">
                 Nombres <span className="text-red-500">*</span>
@@ -179,7 +179,6 @@ export default function NewClientModal({ onSuccess, trigger }: NewClientModalPro
               )}
             </div>
 
-            {/* Campo Apellidos */}
             <div className="grid gap-2">
               <Label htmlFor="lastNames">
                 Apellidos <span className="text-red-500">*</span>
@@ -195,7 +194,6 @@ export default function NewClientModal({ onSuccess, trigger }: NewClientModalPro
               )}
             </div>
 
-            {/* Campo Teléfono */}
             <div className="grid gap-2">
               <Label htmlFor="phone">Teléfono (opcional)</Label>
               <Input
@@ -209,10 +207,9 @@ export default function NewClientModal({ onSuccess, trigger }: NewClientModalPro
               )}
             </div>
 
-            {/* Información adicional */}
             <div className="bg-muted/50 rounded-md p-3">
               <p className="text-xs text-muted-foreground">
-                <strong>Nota:</strong> El usuario y contraseña se generarán automáticamente usando el email (texto antes de @). El cliente deberá cambiar su contraseña en el primer inicio de sesión.
+                <strong>Nota:</strong> La contraseña inicial será igual al username ingresado. El cliente deberá cambiarla en el primer inicio de sesión.
               </p>
             </div>
           </div>

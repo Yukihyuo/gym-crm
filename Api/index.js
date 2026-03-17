@@ -39,6 +39,7 @@ const loadRoutes = async () => {
           console.log(`Ruta cargada: ${routeConfig.path}`);
         }
       } catch (error) {
+        console.log(error)
         console.error(`❌ Error cargando ${file}:`, error.message);
       }
     }

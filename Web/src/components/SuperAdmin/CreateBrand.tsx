@@ -148,7 +148,7 @@ export default function CreateBrand() {
           setOpen(true)
         }}
       >
-        <Building2 className="mr-2 h-4 w-4" />
+        <Building2 className="h-4 w-4" />
         Nueva Brand
       </DropdownMenuItem>
 

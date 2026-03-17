@@ -27,6 +27,7 @@ import {
 import { useAuthStore } from "@/store/authStore"
 import { AccessClientModal } from "../Clients/AccessClientModal"
 import CreateBrand from "../SuperAdmin/CreateBrand"
+import { ModeToggle } from "./theme-toggle"
 
 export function NavUser({
   user,
@@ -103,6 +104,7 @@ export function NavUser({
                 <Bell />
                 Notifications
               </DropdownMenuItem> */}
+              <ModeToggle/>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={clearAuth} >

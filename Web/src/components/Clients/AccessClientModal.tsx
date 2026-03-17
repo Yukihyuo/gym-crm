@@ -9,10 +9,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
 import { DropdownMenuItem } from "../ui/dropdown-menu"
 import { useEffect, useId, useRef, useState } from "react"
 
-import { QrCode, X } from "lucide-react"
+import { QrCode } from "lucide-react"
 import { Html5Qrcode } from "html5-qrcode"
 import axios from "axios"
 
@@ -20,10 +21,17 @@ type QrLoginResponse = {
   success: boolean
 }
 
+type Mode = "qr" | "manual"
+
 export function AccessClientModal() {
   const apiUrl = `${import.meta.env.VITE_API_URL}v1/clients/login-qr`
+  const contactApiUrl = `${import.meta.env.VITE_API_URL}v1/clients/login-qr-contact`
 
   const [open, setOpen] = useState(false)
+  const [mode, setMode] = useState<Mode>("qr")
+  const [manualInput, setManualInput] = useState("")
+  const [manualError, setManualError] = useState("")
+  const [manualLoading, setManualLoading] = useState(false)
   const [scanStatus, setScanStatus] = useState<string>("Inicializando cámara...")
   const [scanError, setScanError] = useState<string>("")
   const [accessGranted, setAccessGranted] = useState(false)
@@ -70,8 +78,35 @@ export function AccessClientModal() {
     }
   }
 
+  const manualLogin = async () => {
+    const value = manualInput.trim()
+    if (!value) {
+      setManualError("Ingresa un email o número de teléfono")
+      return
+    }
+
+    setManualLoading(true)
+    setManualError("")
+
+    const isEmail = value.includes("@")
+    const body = isEmail ? { email: value } : { phone: value }
+
+    try {
+      const response = await axios.post(contactApiUrl, body)
+      manageResponse(response)
+    } catch (error: unknown) {
+      if (axios.isAxiosError(error) && error.response) {
+        setManualError(error.response.data?.message ?? "Error al registrar acceso")
+      } else {
+        setManualError("Error de red. Intenta nuevamente.")
+      }
+    } finally {
+      setManualLoading(false)
+    }
+  }
+
   useEffect(() => {
-    if (!open || accessGranted) return
+    if (!open || accessGranted || mode !== "qr") return
 
     let mounted = true
     let frameId = 0
@@ -208,7 +243,7 @@ export function AccessClientModal() {
         }
       }
     }
-  }, [open, scannerElementId, accessGranted, apiUrl])
+  }, [open, scannerElementId, accessGranted, apiUrl, mode])
 
 
   return (
@@ -220,6 +255,9 @@ export function AccessClientModal() {
           setAccessGranted(false)
           setScanError("")
           setScanStatus("Inicializando cámara...")
+          setMode("qr")
+          setManualInput("")
+          setManualError("")
         }
       }}
     >
@@ -232,8 +270,8 @@ export function AccessClientModal() {
 
       <DialogContent className="sm:max-w-md">
         {accessGranted ? (
-          <div className="relative rounded-md border border-green-300 bg-green-100 p-6">
-            <button
+          <div className="relative mt-4 rounded-md border border-green-300 bg-green-100 p-6">
+            {/* <button
               type="button"
               aria-label="Cerrar"
               className="absolute right-3 top-3 rounded-sm p-1 text-green-900 hover:bg-green-200"
@@ -243,7 +281,7 @@ export function AccessClientModal() {
               }}
             >
               <X className="h-5 w-5" />
-            </button>
+            </button> */}
 
             <div className="mt-4 text-center">
               <h3 className="text-lg font-semibold text-green-900">Acceso concedido</h3>
@@ -255,25 +293,76 @@ export function AccessClientModal() {
         ) : (
           <>
             <DialogHeader>
-              <DialogTitle>Código QR de acceso</DialogTitle>
+              <DialogTitle>Acceso de cliente</DialogTitle>
               <DialogDescription>
-                Escanea este código QR para acceder rápidamente.
+                Escanea el QR del cliente o ingrésalo manualmente.
               </DialogDescription>
             </DialogHeader>
 
-            <div className="rounded-lg border bg-muted/20 p-3">
-              <div className="mx-auto w-full max-w-70 overflow-hidden rounded-md border bg-black" id={scannerElementId} />
+            {/* Tabs */}
+            <div className="flex rounded-md border overflow-hidden text-sm">
+              <button
+                type="button"
+                className={`flex-1 py-2 font-medium transition-colors ${
+                  mode === "qr"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                }`}
+                onClick={() => setMode("qr")}
+              >
+                Cámara QR
+              </button>
+              <button
+                type="button"
+                className={`flex-1 py-2 font-medium transition-colors ${
+                  mode === "manual"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                }`}
+                onClick={() => { setMode("manual"); setManualError("") }}
+              >
+                Manual
+              </button>
             </div>
 
-            {scanStatus ? (
-              <p className="text-sm text-muted-foreground">{scanStatus}</p>
-            ) : null}
+            {mode === "qr" ? (
+              <>
+                <div className="rounded-lg border bg-muted/20 p-3">
+                  <div className="mx-auto w-full max-w-70 overflow-hidden rounded-md border bg-black" id={scannerElementId} />
+                </div>
 
-            {scanError ? (
-              <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-                {scanError}
+                {scanStatus ? (
+                  <p className="text-sm text-muted-foreground">{scanStatus}</p>
+                ) : null}
+
+                {scanError ? (
+                  <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                    {scanError}
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <div className="flex flex-col gap-3">
+                <p className="text-sm text-muted-foreground">
+                  Ingresa el email o número de teléfono del cliente.
+                </p>
+                <Input
+                  placeholder="Email o teléfono"
+                  value={manualInput}
+                  onChange={(e) => { setManualInput(e.target.value); setManualError("") }}
+                  onKeyDown={(e) => { if (e.key === "Enter") void manualLogin() }}
+                  disabled={manualLoading}
+                />
+                {manualError ? (
+                  <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                    {manualError}
+                  </div>
+                ) : null}
+                <Button onClick={() => void manualLogin()} disabled={manualLoading}>
+                  {manualLoading ? "Verificando..." : "Registrar acceso"}
+                </Button>
               </div>
-            ) : null}
+            )}
 
             <DialogFooter>
               <DialogClose asChild>

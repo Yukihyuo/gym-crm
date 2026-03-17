@@ -15,6 +15,7 @@ import Staff from "./routes/staff/page";
 import Clients from "./routes/clients/page";
 import Subscriptions from "@/routes/subscriptions/page";
 import SubscriptionsAssignment from "@/routes/subscriptionsAssignment/page";
+import { ThemeProvider } from "./components/global/theme-provider";
 
 const router = createBrowserRouter([
   {
@@ -96,5 +97,9 @@ const router = createBrowserRouter([
 
 
 export default function Routes() {
-  return <RouterProvider router={router} />;
+  return (
+    <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
+      <RouterProvider router={router} />
+    </ThemeProvider>
+  );
 }

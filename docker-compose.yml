@@ -45,7 +45,7 @@ services:
     build: ./Web
     container_name: vite_web
     environment:
-      - VITE_API_URL=https://api-yukihyuo.duckdns.org/  # <--- IMPORTANTE: Usar el nuevo dominio
+      - VITE_API_URL=https://api.nexay.fit/  # <--- IMPORTANTE: Usar el nuevo dominio
       - VITE_APP_TITLE=My Controller Produccion
       - VITE_SECRET_KEY=YxoSrXRQTjdOaUGfEXewIOhG
       - VITE_HMR_HOST=dashboard.nexay.fit
@@ -59,7 +59,7 @@ services:
     build: ./ClientWeb
     container_name: vite_client
     environment:
-      - VITE_API_URL=https://api-yukihyuo.duckdns.org/  # <--- IMPORTANTE: Usar el nuevo dominio
+      - VITE_API_URL=https://api.nexay.fit/  # <--- IMPORTANTE: Usar el nuevo dominio
       - VITE_APP_TITLE=My Controller Produccion
       - VITE_SECRET_KEY=YxoSrXRQTjdOaUGfEXewIOhG
       - VITE_HMR_HOST=client.nexay.fit

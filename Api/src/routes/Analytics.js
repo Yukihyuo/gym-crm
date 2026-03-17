@@ -3,26 +3,31 @@ import Sale from "../models/Sale.js"
 import Product from "../models/Product.js"
 import Subscription from "../models/Subscription.js"
 import SubscriptionAssignment from "../models/SubscriptionAssignment.js"
-import User from "../models/Staff.js"
+import Client from "../models/Client.js"
+import { authMiddleware } from "../middleware/auth.middleware.js"
 
 const router = express.Router()
+
+// Aplicar autenticación a todos los endpoints de analytics
+router.use(authMiddleware)
 
 // Obtener productos más vendidos
 router.get("/products/top-selling", async (req, res) => {
   try {
     const { startDate, endDate, limit = 10 } = req.query
+    const { storeIds } = req.analyticsContext
 
     // Construcción del filtro de fecha
-    const dateFilter = {}
+    const matchFilter = { status: "completed", storeId: { $in: storeIds } }
     if (startDate || endDate) {
-      dateFilter.createdAt = {}
-      if (startDate) dateFilter.createdAt.$gte = new Date(startDate)
-      if (endDate) dateFilter.createdAt.$lte = new Date(endDate)
+      matchFilter.createdAt = {}
+      if (startDate) matchFilter.createdAt.$gte = new Date(startDate)
+      if (endDate) matchFilter.createdAt.$lte = new Date(endDate)
     }
 
     // Agregación para obtener productos más vendidos
     const topProducts = await Sale.aggregate([
-      { $match: { status: "completed", ...dateFilter } },
+      { $match: matchFilter },
       { $unwind: "$items" },
       {
         $group: {
@@ -47,21 +52,22 @@ router.get("/products/top-selling", async (req, res) => {
 router.get("/subscriptions/most-acquired", async (req, res) => {
   try {
     const { startDate, endDate } = req.query
+    const { brandId } = req.analyticsContext
 
     // Construcción del filtro de fecha
-    const dateFilter = {}
+    const matchFilter = { brandId }
     if (startDate || endDate) {
-      dateFilter.createdAt = {}
-      if (startDate) dateFilter.createdAt.$gte = new Date(startDate)
-      if (endDate) dateFilter.createdAt.$lte = new Date(endDate)
+      matchFilter.createdAt = {}
+      if (startDate) matchFilter.createdAt.$gte = new Date(startDate)
+      if (endDate) matchFilter.createdAt.$lte = new Date(endDate)
     }
 
     // Agregación para obtener subscripciones más adquiridas
     const topSubscriptions = await SubscriptionAssignment.aggregate([
-      { $match: dateFilter },
+      { $match: matchFilter },
       {
         $group: {
-          _id: "$subscriptionId",
+          _id: "$planId",
           count: { $sum: 1 }
         }
       },
@@ -95,9 +101,10 @@ router.get("/subscriptions/most-acquired", async (req, res) => {
 router.get("/revenue/by-period", async (req, res) => {
   try {
     const { period = "month", year, month } = req.query
+    const { storeIds } = req.analyticsContext
 
     let groupBy = {}
-    let dateFilter = { status: "completed" }
+    let dateFilter = { status: "completed", storeId: { $in: storeIds } }
 
     // Agregar filtro de año/mes si se proporciona
     if (year) {
@@ -157,6 +164,7 @@ router.get("/revenue/by-period", async (req, res) => {
 // Obtener estadísticas generales del dashboard
 router.get("/dashboard/summary", async (req, res) => {
   try {
+    const { brandId, storeIds } = req.analyticsContext
     const now = new Date()
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
     const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
@@ -167,6 +175,7 @@ router.get("/dashboard/summary", async (req, res) => {
       {
         $match: {
           status: "completed",
+          storeId: { $in: storeIds },
           createdAt: { $gte: startOfMonth }
         }
       },
@@ -184,6 +193,7 @@ router.get("/dashboard/summary", async (req, res) => {
       {
         $match: {
           status: "completed",
+          storeId: { $in: storeIds },
           createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth }
         }
       },
@@ -196,24 +206,28 @@ router.get("/dashboard/summary", async (req, res) => {
       }
     ])
 
-    // Subscripciones activas
+    // Subscripciones activas (scope por marca)
     const activeSubscriptions = await SubscriptionAssignment.countDocuments({
+      brandId,
+      status: "active",
       endDate: { $gte: now }
     })
 
-    // Subscripciones del mes
+    // Subscripciones del mes (scope por marca)
     const monthSubscriptions = await SubscriptionAssignment.countDocuments({
+      brandId,
       createdAt: { $gte: startOfMonth }
     })
 
-    // Productos con bajo stock
+    // Productos con bajo stock (scope por tiendas)
     const lowStockProducts = await Product.countDocuments({
+      storeId: { $in: storeIds },
       stock: { $lt: 10 },
       status: "available"
     })
 
-    // Total de clientes (usuarios con rol de cliente)
-    const totalClients = await User.countDocuments({})
+    // Total de clientes de la marca
+    const totalClients = await Client.countDocuments({ brandId })
 
     // Calcular cambios porcentuales
     const currentRevenue = currentMonthSales[0]?.totalRevenue || 0
@@ -255,8 +269,9 @@ router.get("/dashboard/summary", async (req, res) => {
 router.get("/sales/by-payment-method", async (req, res) => {
   try {
     const { startDate, endDate } = req.query
+    const { storeIds } = req.analyticsContext
 
-    const dateFilter = { status: "completed" }
+    const dateFilter = { status: "completed", storeId: { $in: storeIds } }
     if (startDate || endDate) {
       dateFilter.createdAt = {}
       if (startDate) dateFilter.createdAt.$gte = new Date(startDate)
@@ -285,8 +300,9 @@ router.get("/sales/by-payment-method", async (req, res) => {
 router.get("/revenue/by-category", async (req, res) => {
   try {
     const { startDate, endDate } = req.query
+    const { storeIds } = req.analyticsContext
 
-    const dateFilter = { status: "completed" }
+    const dateFilter = { status: "completed", storeId: { $in: storeIds } }
     if (startDate || endDate) {
       dateFilter.createdAt = {}
       if (startDate) dateFilter.createdAt.$gte = new Date(startDate)
@@ -326,9 +342,10 @@ router.get("/revenue/by-category", async (req, res) => {
 router.get("/clients/top-buyers", async (req, res) => {
   try {
     const { limit = 10 } = req.query
+    const { storeIds } = req.analyticsContext
 
     const topClients = await Sale.aggregate([
-      { $match: { status: "completed" } },
+      { $match: { status: "completed", storeId: { $in: storeIds } } },
       {
         $group: {
           _id: "$clientId",
@@ -339,7 +356,7 @@ router.get("/clients/top-buyers", async (req, res) => {
       },
       {
         $lookup: {
-          from: "users",
+          from: "clients",
           localField: "_id",
           foreignField: "_id",
           as: "client"
@@ -349,7 +366,7 @@ router.get("/clients/top-buyers", async (req, res) => {
       {
         $project: {
           _id: 1,
-          clientName: "$client.name",
+          clientName: { $concat: ["$client.profile.names", " ", "$client.profile.lastNames"] },
           clientEmail: "$client.email",
           totalPurchases: 1,
           totalSpent: 1,
@@ -370,6 +387,7 @@ router.get("/clients/top-buyers", async (req, res) => {
 router.get("/subscriptions/expiring-soon", async (req, res) => {
   try {
     const { days = 7 } = req.query
+    const { brandId } = req.analyticsContext
     const now = new Date()
     const futureDate = new Date()
     futureDate.setDate(futureDate.getDate() + parseInt(days))
@@ -377,6 +395,8 @@ router.get("/subscriptions/expiring-soon", async (req, res) => {
     const expiringSoon = await SubscriptionAssignment.aggregate([
       {
         $match: {
+          brandId,
+          status: "active",
           endDate: {
             $gte: now,
             $lte: futureDate
@@ -385,17 +405,17 @@ router.get("/subscriptions/expiring-soon", async (req, res) => {
       },
       {
         $lookup: {
-          from: "users",
-          localField: "userId",
+          from: "clients",
+          localField: "clientId",
           foreignField: "_id",
-          as: "user"
+          as: "client"
         }
       },
-      { $unwind: "$user" },
+      { $unwind: "$client" },
       {
         $lookup: {
           from: "subscriptions",
-          localField: "subscriptionId",
+          localField: "planId",
           foreignField: "_id",
           as: "subscription"
         }
@@ -404,8 +424,8 @@ router.get("/subscriptions/expiring-soon", async (req, res) => {
       {
         $project: {
           _id: 1,
-          userName: "$user.name",
-          userEmail: "$user.email",
+          userName: { $concat: ["$client.profile.names", " ", "$client.profile.lastNames"] },
+          userEmail: "$client.email",
           subscriptionName: "$subscription.name",
           endDate: 1,
           daysRemaining: {

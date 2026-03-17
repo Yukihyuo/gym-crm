@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import axios from 'axios'
+import apiClient from '@/lib/axios'
 import { API_ENDPOINTS } from '@/config/api'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
@@ -90,13 +90,13 @@ export default function Page() {
     try {
       setLoading(true)
       const [summaryRes, productsRes, subscriptionsRes, categoryRes, paymentRes, buyersRes, expiringRes] = await Promise.all([
-        axios.get(API_ENDPOINTS.ANALYTICS.DASHBOARD_SUMMARY),
-        axios.get(API_ENDPOINTS.ANALYTICS.PRODUCTS_TOP_SELLING + '?limit=5'),
-        axios.get(API_ENDPOINTS.ANALYTICS.SUBSCRIPTIONS_MOST_ACQUIRED),
-        axios.get(API_ENDPOINTS.ANALYTICS.REVENUE_BY_CATEGORY),
-        axios.get(API_ENDPOINTS.ANALYTICS.SALES_BY_PAYMENT_METHOD),
-        axios.get(API_ENDPOINTS.ANALYTICS.CLIENTS_TOP_BUYERS + '?limit=5'),
-        axios.get(API_ENDPOINTS.ANALYTICS.SUBSCRIPTIONS_EXPIRING_SOON + '?days=30')
+        apiClient.get(API_ENDPOINTS.ANALYTICS.DASHBOARD_SUMMARY),
+        apiClient.get(API_ENDPOINTS.ANALYTICS.PRODUCTS_TOP_SELLING + '?limit=5'),
+        apiClient.get(API_ENDPOINTS.ANALYTICS.SUBSCRIPTIONS_MOST_ACQUIRED),
+        apiClient.get(API_ENDPOINTS.ANALYTICS.REVENUE_BY_CATEGORY),
+        apiClient.get(API_ENDPOINTS.ANALYTICS.SALES_BY_PAYMENT_METHOD),
+        apiClient.get(API_ENDPOINTS.ANALYTICS.CLIENTS_TOP_BUYERS + '?limit=5'),
+        apiClient.get(API_ENDPOINTS.ANALYTICS.SUBSCRIPTIONS_EXPIRING_SOON + '?days=30')
       ])
 
       setSummary(summaryRes.data)

@@ -4,15 +4,32 @@ import jwt from "jsonwebtoken"
 import Client from "../models/Client.js"
 import Store from "../models/Store.js"
 import Visit from "../models/Visit.js"
+import Brand from "../models/Brand.js"
 import SubscriptionAssignment from "../models/SubscriptionAssignment.js"
+import { sendWelcomeEmail } from "../emails/email.handler.js"
 
 
 const router = express.Router()
 
+router.get('/sendMail', async (req, res) => {
+  try {
+    const client = await Client.findById("69a8cbf29cd294422dab7586")
+    const brand = await Brand.findById(client.brandId)
+    sendWelcomeEmail(client, brand)
+    res.status(200).json("Email de bienvenida enviado")
+  }catch (error) {
+    console.error('Error en getProfile:', error);
+    res.status(500).json({
+      message: 'Error al obtener perfil del cliente',
+      error: error.message
+    })
+  }
+})
+
 // Create - Crear nuevo cliente
 router.post('/create', async (req, res) => {
   try {
-    const { email, storeId, profile } = req.body;
+    const { email, storeId, profile, username: requestedUsername } = req.body;
 
     // Validar campos requeridos
     if (!email || !storeId || !profile?.names || !profile?.lastNames) {
@@ -39,15 +56,23 @@ router.post('/create', async (req, res) => {
       });
     }
 
-    // Extraer username del email (texto antes del @)
-    const username = email.split('@')[0];
+    // Permitir username manual; si no se envía, se deriva del email
+    const username = typeof requestedUsername === 'string' && requestedUsername.trim()
+      ? requestedUsername.trim()
+      : email.split('@')[0];
+
+    if (!username) {
+      return res.status(400).json({
+        message: 'Username inválido'
+      });
+    }
 
     // Verificar si el username ya existe
     const existingUsername = await Client.findOne({ username });
 
     if (existingUsername) {
       return res.status(400).json({
-        message: 'El username derivado del email ya existe. Use un email diferente.'
+        message: 'El username ya existe. Use uno diferente.'
       });
     }
 
@@ -70,8 +95,20 @@ router.post('/create', async (req, res) => {
 
     await newClient.save();
 
+    let welcomeEmailSent = false;
+    try {
+      const brand = await Brand.findById(store.brandId);
+      if (brand) {
+        await sendWelcomeEmail(newClient, brand);
+        welcomeEmailSent = true;
+      }
+    } catch (emailError) {
+      console.error('Error enviando email de bienvenida:', emailError);
+    }
+
     res.status(201).json({
       message: 'Cliente creado exitosamente',
+      welcomeEmailSent,
       client: {
         id: newClient._id,
         username: newClient.username,
@@ -473,11 +510,74 @@ router.get('/assistance/:clientId', async (req, res) => {
 
 })
 
+const findClientByIdentifier = async (identifier) => {
+  if (!identifier || typeof identifier !== 'string') {
+    return null
+  }
+
+  const value = identifier.trim()
+  if (!value) {
+    return null
+  }
+
+  const normalizedPhone = value.replace(/\D/g, '')
+  const phoneCandidates = [value]
+
+  if (normalizedPhone && normalizedPhone !== value) {
+    phoneCandidates.push(normalizedPhone)
+  }
+
+  return Client.findOne({
+    $or: [
+      { _id: value },
+      { username: value },
+      { 'profile.phone': { $in: phoneCandidates } }
+    ]
+  })
+}
+
+const registerQrVisit = async (client, method) => {
+  const sub = await SubscriptionAssignment.findOne({ clientId: client._id, status: 'active' })
+
+  if (!sub) {
+    return {
+      ok: false,
+      status: 403,
+      payload: {
+        message: 'El cliente no tiene una suscripción activa'
+      }
+    }
+  }
+
+  await Visit.create({
+    brandId: client.brandId,
+    storeId: client.storeId,
+    clientId: client._id,
+    accessMethod: method,
+    isTrial: sub.isTrial
+  })
+
+  return {
+    ok: true,
+    status: 200,
+    payload: {
+      message: 'QR decodificado exitosamente',
+      success: true,
+    }
+  }
+}
+
 router.post('/login-qr', async (req, res) => {
   try {
     const { qrData } = req.body;
-    console.log('QR Data recibida:', qrData)
-    const client = await Client.findById(qrData)
+
+    if (!qrData) {
+      return res.status(400).json({
+        message: 'qrData es requerido'
+      })
+    }
+
+    const client = await findClientByIdentifier(qrData)
 
     if (!client) {
       return res.status(404).json({
@@ -485,25 +585,8 @@ router.post('/login-qr', async (req, res) => {
       });
     }
 
-    const sub = await SubscriptionAssignment.findOne({ clientId: client._id, status: 'active' })
-    if (!sub) {
-      return res.status(403).json({
-        message: 'El cliente no tiene una suscripción activa'
-      });
-    }
-
-    Visit.create({
-      brandId: client.brandId,
-      storeId: client.storeId,
-      clientId: client._id,
-      accessMethod: 'qr',
-      isTrial: sub.isTrial
-    });
-
-    res.status(200).json({
-      message: 'QR decodificado exitosamente',
-      success: true,
-    })
+    const result = await registerQrVisit(client, 'qr')
+    return res.status(result.status).json(result.payload)
 
   } catch (error) {
     console.error('Error en login-qr:', error);
@@ -513,5 +596,37 @@ router.post('/login-qr', async (req, res) => {
     });
   }
 })
+
+router.post('/login-qr-contact', async (req, res) => {
+  try {
+    const { email, phone } = req.body
+    const identifier = email || phone
+
+    if (!identifier) {
+      return res.status(400).json({
+        message: 'Debe enviar email o phone'
+      })
+    }
+    console.log(identifier)
+    const client = await findClientByIdentifier(identifier)
+
+    if (!client) {
+      return res.status(404).json({
+        message: 'Cliente no encontrado'
+      })
+    }
+
+    const result = await registerQrVisit(client, 'manual')
+    return res.status(result.status).json(result.payload)
+  } catch (error) {
+    console.error('Error en login-qr-contact:', error)
+    res.status(500).json({
+      message: 'Error al iniciar sesión con email o phone',
+      error: error.message
+    })
+  }
+})
+
+
 
 export const routeConfig = { path: "/v1/clients", router }
