@@ -17,7 +17,7 @@ router.get('/sendMail', async (req, res) => {
     const brand = await Brand.findById(client.brandId)
     sendWelcomeEmail(client, brand)
     res.status(200).json("Email de bienvenida enviado")
-  }catch (error) {
+  } catch (error) {
     console.error('Error en getProfile:', error);
     res.status(500).json({
       message: 'Error al obtener perfil del cliente',
@@ -25,6 +25,46 @@ router.get('/sendMail', async (req, res) => {
     })
   }
 })
+
+router.get('/searchSelect/:search', async (req, res) => {
+  const { search } = req.params;
+  const { brandid } = req.headers;
+
+  try {
+    if (!brandid) {
+      return res.status(400).json({ message: 'El header brandId es requerido' });
+    }
+
+    const searchRegex = new RegExp(search, 'i');
+
+    const clients = await Client.find({
+      brandId: brandid,
+      $or: [
+        { _id: searchRegex }, // Al ser String, ahora puedes usar Regex aquí también
+        { username: searchRegex },
+        { 'profile.names': searchRegex },
+        { 'profile.lastNames': searchRegex },
+        { 'profile.phone': searchRegex }
+      ]
+    })
+      .select('_id username profile')
+      .limit(15) 
+      .sort({ 'profile.names': 1 })
+      .lean();
+
+    const formattedClients = clients.map(client => ({
+      value: client._id, // Tu ID de "portabilidad"
+      label: `${client.profile?.names || ''} ${client.profile?.lastNames || ''}`.trim() || client.username,
+      // Metadata para que el usuario identifique al socio correcto
+      subtitle: `${client.profile?.phone || ''} | ID: ${client._id}` 
+    }));
+
+    res.status(200).json(formattedClients);
+  } catch (error) {
+    console.error('Error en searchSelect:', error);
+    res.status(500).json({ message: 'Error al buscar clientes' });
+  }
+});
 
 // Create - Crear nuevo cliente
 router.post('/create', async (req, res) => {

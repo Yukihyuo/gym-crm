@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react"
 import axios from "axios"
 import { toast } from "react-toastify"
-import { Plus, Trash2, ShoppingCart } from "lucide-react"
+import { Check, ChevronsUpDown, Plus, Trash2, ShoppingCart } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -31,14 +31,21 @@ import {
 } from "@/components/ui/table"
 import { API_ENDPOINTS } from "@/config/api"
 import { useAuthStore } from "@/store/authStore"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { cn } from "@/lib/utils"
 
-interface User {
-  _id: string
-  username: string
-  profile: {
-    names: string
-    lastNames: string
-  }
+interface ClientOption {
+  value: string
+  label: string
+  subtitle?: string
 }
 
 interface Product {
@@ -67,7 +74,12 @@ interface NewSaleModalProps {
 export function NewSaleModal({ onSuccess, trigger }: NewSaleModalProps) {
   const [open, setOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [clients, setClients] = useState<User[]>([])
+  const [clients, setClients] = useState<ClientOption[]>([])
+  const [isLoadingClients, setIsLoadingClients] = useState(false)
+  const [clientComboboxOpen, setClientComboboxOpen] = useState(false)
+  const [clientSearch, setClientSearch] = useState("")
+  const [debouncedClientSearch, setDebouncedClientSearch] = useState("")
+  const [selectedClientLabel, setSelectedClientLabel] = useState("")
   const [products, setProducts] = useState<Product[]>([])
   const [selectedClientId, setSelectedClientId] = useState<string>("")
   const [selectedProductId, setSelectedProductId] = useState<string>("")
@@ -82,18 +94,7 @@ export function NewSaleModal({ onSuccess, trigger }: NewSaleModalProps) {
   // const brandActive = useAuthStore((state) => state.access?.brandId ?? null)
   const activeStoreId = useAuthStore((state) => state.getActiveStoreId())
   const brandId = useAuthStore((state) => state.getBrandId())
-
-  // Cargar clientes y productos al abrir el modal
-  const fetchClients = useCallback(async () => {
-    try {
-      const response = await axios.get(API_ENDPOINTS.CLIENTS.GET_BY_BRAND(brandId || ""))
-      console.log(response)
-      setClients(response.data.clients || [])
-    } catch (error) {
-      console.error("Error al cargar clientes:", error)
-      toast.error("Error al cargar los clientes")
-    }
-  }, [brandId])
+  const token = useAuthStore((state) => state.token)
 
   const fetchProducts = useCallback(async () => {
     if (!activeStoreId) {
@@ -115,15 +116,80 @@ export function NewSaleModal({ onSuccess, trigger }: NewSaleModalProps) {
   }, [activeStoreId])
 
   useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedClientSearch(clientSearch.trim())
+    }, 300)
+
+    return () => clearTimeout(timeout)
+  }, [clientSearch])
+
+  useEffect(() => {
     if (open) {
-      fetchClients()
       fetchProducts()
       resetForm()
+    } else {
+      setClientComboboxOpen(false)
     }
-  }, [open, fetchClients, fetchProducts])
+  }, [open, fetchProducts])
+
+  useEffect(() => {
+    if (!open || !brandId) {
+      return
+    }
+
+    if (!debouncedClientSearch) {
+      setClients([])
+      setIsLoadingClients(false)
+      return
+    }
+
+    let isCancelled = false
+
+    const searchClients = async () => {
+      try {
+        setIsLoadingClients(true)
+        const response = await axios.get(API_ENDPOINTS.CLIENTS.SEARCH_SELECT(debouncedClientSearch), {
+          headers: {
+            Authorization: token,
+            brandid: brandId,
+          },
+        })
+
+        if (!isCancelled) {
+          setClients(response.data || [])
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          setClients([])
+          console.error("Error al buscar clientes:", error)
+          toast.error("Error al buscar clientes")
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsLoadingClients(false)
+        }
+      }
+    }
+
+    searchClients()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [open, brandId, token, debouncedClientSearch])
+
+  const handleSelectClient = (client: ClientOption) => {
+    setSelectedClientId(client.value)
+    setSelectedClientLabel(client.label)
+    setClientComboboxOpen(false)
+  }
 
   const resetForm = () => {
     setSelectedClientId("")
+    setSelectedClientLabel("")
+    setClientSearch("")
+    setDebouncedClientSearch("")
+    setClients([])
     setSelectedProductId("")
     setProductQuantity(1)
     setSaleItems([])
@@ -314,18 +380,72 @@ export function NewSaleModal({ onSuccess, trigger }: NewSaleModalProps) {
           {/* Selección de Cliente */}
           <div className="space-y-2">
             <Label htmlFor="client">Cliente *</Label>
-            <Select value={selectedClientId} onValueChange={setSelectedClientId}>
-              <SelectTrigger id="client">
-                <SelectValue placeholder="Selecciona un cliente" />
-              </SelectTrigger>
-              <SelectContent>
-                {clients.map((client) => (
-                  <SelectItem key={client._id} value={client._id}>
-                    {client.profile.names} {client.profile.lastNames} - {client.username}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover open={clientComboboxOpen} onOpenChange={setClientComboboxOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  id="client"
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={clientComboboxOpen}
+                  className="w-full justify-between"
+                  disabled={isLoading}
+                >
+                  {selectedClientLabel || "Busca y selecciona un cliente"}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                <Command shouldFilter={false}>
+                  <CommandInput
+                    placeholder="Buscar por nombre, teléfono, username o ID..."
+                    value={clientSearch}
+                    onValueChange={setClientSearch}
+                  />
+                  <CommandList>
+                    {!debouncedClientSearch ? (
+                      <div className="py-6 text-center text-sm text-muted-foreground">
+                        Escribe para buscar clientes
+                      </div>
+                    ) : null}
+
+                    {isLoadingClients ? (
+                      <div className="py-6 text-center text-sm text-muted-foreground">
+                        Buscando clientes...
+                      </div>
+                    ) : null}
+
+                    {!isLoadingClients && debouncedClientSearch && clients.length === 0 ? (
+                      <CommandEmpty>No se encontraron clientes.</CommandEmpty>
+                    ) : null}
+
+                    {!isLoadingClients && clients.length > 0 ? (
+                      <CommandGroup>
+                        {clients.map((client) => (
+                          <CommandItem
+                            key={client.value}
+                            value={client.value}
+                            onSelect={() => handleSelectClient(client)}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                selectedClientId === client.value ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            <div className="flex min-w-0 flex-col">
+                              <span className="truncate">{client.label}</span>
+                              {client.subtitle ? (
+                                <span className="truncate text-xs text-muted-foreground">{client.subtitle}</span>
+                              ) : null}
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    ) : null}
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
 
           {/* Agregar Productos */}

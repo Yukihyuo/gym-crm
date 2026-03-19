@@ -61,6 +61,7 @@ export const API_ENDPOINTS = {
     LOGIN: `${API_URL}v1/clients/login`,
     GET_ALL_USERS: `${API_URL}v1/clients/getAll`,
     GET_BY_BRAND: (brandName: string) => `${API_URL}v1/clients/brand/${brandName}`,
+    SEARCH_SELECT: (search: string) => `${API_URL}v1/clients/searchSelect/${encodeURIComponent(search)}`,
     GET_BY_STORE: (storeName: string) => `${API_URL}v1/clients/store/${storeName}`,
     GET_BY_ID: (clientId: string) => `${API_URL}v1/clients/getById/${clientId}`,
     UPDATE_BY_ID: (clientId: string) => `${API_URL}v1/clients/update/${clientId}`,

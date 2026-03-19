@@ -13,8 +13,19 @@ import { Label } from "@/components/ui/label";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { useCallback, useEffect } from "react";
+import { Check, ChevronsUpDown } from "lucide-react"
 import { API_ENDPOINTS } from "@/config/api"
 import { useAuthStore } from "@/store/authStore"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { cn } from "@/lib/utils"
 
 type SubmitHandler = (
   event: FormEvent<HTMLFormElement>
@@ -26,12 +37,9 @@ interface BaseDocumentProps {
 }
 
 interface ClientData {
-  _id: string;
-  profile?: {
-    names?: string;
-    lastNames?: string;
-  };
-  email?: string;
+  value: string;
+  label: string;
+  subtitle?: string;
 }
 
 interface SubscriptionData {
@@ -83,8 +91,13 @@ const formatCurrency = (price?: SubscriptionData['price']) => {
 export default function NewSubscriptionsAssignment({ onSubmit, onAssignmentCreated }: BaseDocumentProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false)
+  const [loadingClients, setLoadingClients] = useState(false)
   const [clients, setClients] = useState<ClientData[]>([])
   const [subscriptions, setSubscriptions] = useState<SubscriptionData[]>([])
+  const [clientComboboxOpen, setClientComboboxOpen] = useState(false)
+  const [clientSearch, setClientSearch] = useState("")
+  const [debouncedClientSearch, setDebouncedClientSearch] = useState("")
+  const [selectedClientLabel, setSelectedClientLabel] = useState("")
 
   const [clientId, setClientId] = useState("")
   const [planId, setPlanId] = useState("")
@@ -93,37 +106,101 @@ export default function NewSubscriptionsAssignment({ onSubmit, onAssignmentCreat
   const activeStoreId = useAuthStore((state) => state.getActiveStoreId())
   const token = useAuthStore((state) => state.token)
 
-  const loadOptions = useCallback(async () => {
+  const loadSubscriptions = useCallback(async () => {
     if (!brandId) return;
 
     try {
-      const [clientsResponse, subscriptionsResponse] = await Promise.all([
-        axios.get(API_ENDPOINTS.CLIENTS.GET_BY_BRAND(brandId), {
-          headers: { Authorization: token },
-        }),
-        axios.get(API_ENDPOINTS.SUBSCRIPTIONS.GET_BY_BRAND(brandId), {
-          headers: { Authorization: token },
-        })
-      ])
+      const subscriptionsResponse = await axios.get(API_ENDPOINTS.SUBSCRIPTIONS.GET_BY_BRAND(brandId), {
+        headers: { Authorization: token },
+      })
 
-      setClients(clientsResponse.data?.clients || [])
       setSubscriptions((subscriptionsResponse.data?.subscriptions || []).filter((item: SubscriptionData) => item.status === 'active'))
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error("Error al cargar opciones:", error)
-      toast.error(error.response?.data?.message || "Error al cargar clientes o membresías")
+      toast.error(error.response?.data?.message || "Error al cargar membresías")
     }
   }, [brandId, token])
 
   useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedClientSearch(clientSearch.trim())
+    }, 300)
+
+    return () => clearTimeout(timeout)
+  }, [clientSearch])
+
+  useEffect(() => {
     if (open) {
-      loadOptions()
+      setClientSearch("")
+      setDebouncedClientSearch("")
+      setClients([])
+      loadSubscriptions()
+    } else {
+      setClientComboboxOpen(false)
     }
-  }, [open, loadOptions])
+  }, [open, loadSubscriptions])
+
+  useEffect(() => {
+    if (!open || !brandId) {
+      return
+    }
+
+    if (!debouncedClientSearch) {
+      setClients([])
+      setLoadingClients(false)
+      return
+    }
+
+    let isCancelled = false
+
+    const searchClients = async () => {
+      try {
+        setLoadingClients(true)
+        const response = await axios.get(API_ENDPOINTS.CLIENTS.SEARCH_SELECT(debouncedClientSearch), {
+          headers: {
+            Authorization: token,
+            brandid: brandId,
+          },
+        })
+
+        if (!isCancelled) {
+          setClients(response.data || [])
+        }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (error: any) {
+        if (!isCancelled) {
+          setClients([])
+          console.error("Error al buscar clientes:", error)
+          toast.error(error.response?.data?.message || "Error al buscar clientes")
+        }
+      } finally {
+        if (!isCancelled) {
+          setLoadingClients(false)
+        }
+      }
+    }
+
+    searchClients()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [open, brandId, token, debouncedClientSearch])
+
+  const handleSelectClient = (client: ClientData) => {
+    setClientId(client.value)
+    setSelectedClientLabel(client.label)
+    setClientComboboxOpen(false)
+  }
 
   const resetForm = () => {
     setClientId("")
     setPlanId("")
+    setClientSearch("")
+    setDebouncedClientSearch("")
+    setSelectedClientLabel("")
+    setClients([])
   }
 
   const handleCancel = () => {
@@ -201,20 +278,72 @@ export default function NewSubscriptionsAssignment({ onSubmit, onAssignmentCreat
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label htmlFor="clientId">Cliente *</Label>
-              <select
-                id="clientId"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={clientId}
-                onChange={(e) => setClientId(e.target.value)}
-                disabled={loading}
-              >
-                <option value="">Selecciona un cliente</option>
-                {clients.map((client) => (
-                  <option key={client._id} value={client._id}>
-                    {(client.profile?.names || '') + ' ' + (client.profile?.lastNames || '')} {client.email ? `- ${client.email}` : ''}
-                  </option>
-                ))}
-              </select>
+              <Popover open={clientComboboxOpen} onOpenChange={setClientComboboxOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    id="clientId"
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={clientComboboxOpen}
+                    className="w-full justify-between"
+                    disabled={loading}
+                  >
+                    {selectedClientLabel || "Busca y selecciona un cliente"}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                  <Command shouldFilter={false}>
+                    <CommandInput
+                      placeholder="Buscar por nombre, teléfono, username o ID..."
+                      value={clientSearch}
+                      onValueChange={setClientSearch}
+                    />
+                    <CommandList>
+                      {!debouncedClientSearch ? (
+                        <div className="py-6 text-center text-sm text-muted-foreground">
+                          Escribe para buscar clientes
+                        </div>
+                      ) : null}
+
+                      {loadingClients ? (
+                        <div className="py-6 text-center text-sm text-muted-foreground">
+                          Buscando clientes...
+                        </div>
+                      ) : null}
+
+                      {!loadingClients && debouncedClientSearch && clients.length === 0 ? (
+                        <CommandEmpty>No se encontraron clientes.</CommandEmpty>
+                      ) : null}
+
+                      {!loadingClients && clients.length > 0 ? (
+                        <CommandGroup>
+                          {clients.map((client) => (
+                            <CommandItem
+                              key={client.value}
+                              value={client.value}
+                              onSelect={() => handleSelectClient(client)}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  clientId === client.value ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <div className="flex min-w-0 flex-col">
+                                <span className="truncate">{client.label}</span>
+                                {client.subtitle ? (
+                                  <span className="truncate text-xs text-muted-foreground">{client.subtitle}</span>
+                                ) : null}
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      ) : null}
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="grid gap-2">
