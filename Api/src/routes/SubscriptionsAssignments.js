@@ -1,48 +1,31 @@
 import express from "express"
+import dayjs from 'dayjs';
 
 import SubscriptionAssignment from "../models/SubscriptionAssignment.js"
 import Client from "../models/Client.js"
-import Visit from "../models/Visit.js"
 import Store from "../models/Store.js"
 import Subscription from "../models/Subscription.js"
 
 const router = express.Router()
 
 const calculateEndDate = (startDate, duration) => {
-  const endDate = new Date(startDate);
   const value = Number(duration?.value || 0);
-  const unit = duration?.unit || 'months';
+  const unit = duration?.unit || 'months'; // Day.js acepta 'days', 'weeks', 'months', 'years'
 
   if (value <= 0) return null;
-
-  switch (unit) {
-    case 'days':
-      endDate.setDate(endDate.getDate() + value);
-      break;
-    case 'weeks':
-      endDate.setDate(endDate.getDate() + (value * 7));
-      break;
-    case 'years':
-      endDate.setFullYear(endDate.getFullYear() + value);
-      break;
-    case 'months':
-    default:
-      endDate.setMonth(endDate.getMonth() + value);
-      break;
-  }
-
-  return endDate;
+  return dayjs(startDate)
+    .add(value, unit)
+    .endOf('day')
+    .toDate();
 };
 
-// Create - Asignar una membresía a un cliente
+// --- ENDPOINT: CREAR ASIGNACIÓN (CORREGIDO) ---
 router.post('/create', async (req, res) => {
   try {
     const { clientId, storeId, planId } = req.body;
 
     if (!clientId || !storeId || !planId) {
-      return res.status(400).json({
-        message: 'clientId, storeId y planId son requeridos'
-      });
+      return res.status(400).json({ message: 'clientId, storeId y planId son requeridos' });
     }
 
     const [client, store, subscription] = await Promise.all([
@@ -51,34 +34,16 @@ router.post('/create', async (req, res) => {
       Subscription.findById(planId)
     ]);
 
-    if (!client) {
-      return res.status(404).json({
-        message: 'Cliente no encontrado'
-      });
-    }
-
-    if (!store) {
-      return res.status(404).json({
-        message: 'Tienda no encontrada'
-      });
-    }
-
-    if (!subscription) {
-      return res.status(404).json({
-        message: 'Membresía no encontrada'
-      });
+    if (!client || !store || !subscription) {
+      return res.status(404).json({ message: 'Recurso no encontrado (Cliente/Tienda/Plan)' });
     }
 
     if (subscription.status !== 'active') {
-      return res.status(400).json({
-        message: 'Solo se pueden asignar membresías activas'
-      });
+      return res.status(400).json({ message: 'Solo se pueden asignar membresías activas' });
     }
 
     if (client.brandId !== store.brandId || subscription.brandId !== store.brandId) {
-      return res.status(400).json({
-        message: 'Cliente, tienda y membresía deben pertenecer a la misma marca'
-      });
+      return res.status(400).json({ message: 'Inconsistencia de marca (BrandId mismatch)' });
     }
 
     const existingActiveAssignment = await SubscriptionAssignment.findOne({
@@ -88,12 +53,12 @@ router.post('/create', async (req, res) => {
     });
 
     if (existingActiveAssignment) {
-      return res.status(400).json({
-        message: 'El cliente ya tiene esta membresía activa'
-      });
+      return res.status(400).json({ message: 'El cliente ya tiene esta membresía activa' });
     }
 
-    const assignmentStartDate = new Date();
+    // NORMALIZACIÓN:
+    // Iniciamos al primer segundo de hoy y terminamos al último segundo del día de vencimiento
+    const assignmentStartDate = dayjs().startOf('day').toDate();
     const assignmentEndDate = calculateEndDate(assignmentStartDate, subscription.duration);
 
     const newAssignment = new SubscriptionAssignment({
@@ -115,10 +80,45 @@ router.post('/create', async (req, res) => {
 
   } catch (error) {
     console.error('Error en create:', error);
-    res.status(500).json({
-      message: 'Error al asignar membresía',
-      error: error.message
+    res.status(500).json({ message: 'Error al asignar membresía', error: error.message });
+  }
+});
+
+// --- ENDPOINT: MANTENIMIENTO (MIGRACIÓN DE 5K REGISTROS) ---
+// Este endpoint normaliza los endDate existentes al final de su respectivo día
+router.patch('/maintenance/normalize-dates', async (req, res) => {
+  try {
+    // 1. Buscamos todas las asignaciones que tengan un endDate
+    const assignments = await SubscriptionAssignment.find({ endDate: { $exists: true } });
+    
+    let updatedCount = 0;
+
+    // 2. Usamos un BulkWrite para mayor eficiencia con 5k+ registros
+    const bulkOps = assignments.map(doc => ({
+      updateOne: {
+        filter: { _id: doc._id },
+        update: { 
+          $set: { 
+            endDate: dayjs(doc.endDate).endOf('day').toDate() 
+          } 
+        }
+      }
+    }));
+
+    if (bulkOps.length > 0) {
+      const result = await SubscriptionAssignment.bulkWrite(bulkOps);
+      updatedCount = result.modifiedCount;
+    }
+
+    res.json({
+      message: 'Normalización completada con éxito',
+      registrosProcesados: assignments.length,
+      registrosModificados: updatedCount
     });
+
+  } catch (error) {
+    console.error('Error en mantenimiento:', error);
+    res.status(500).json({ message: 'Error en la migración', error: error.message });
   }
 });
 

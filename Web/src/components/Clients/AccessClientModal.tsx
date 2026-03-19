@@ -10,15 +10,33 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { Separator } from "@/components/ui/separator"
 import { DropdownMenuItem } from "../ui/dropdown-menu"
 import { useEffect, useId, useRef, useState } from "react"
 
-import { QrCode } from "lucide-react"
-import { Html5Qrcode } from "html5-qrcode"
+import { CheckCircle2, QrCode } from "lucide-react"
+import { Html5Qrcode, Html5QrcodeScannerState } from "html5-qrcode"
 import axios from "axios"
 
+type MembershipInfo = {
+  name?: string
+  description?: string
+  duration?: {
+    value?: number
+    unit?: "days" | "weeks" | "months" | "years" | string
+  }
+  price?: {
+    amount?: number
+    currency?: string
+  }
+}
+
 type QrLoginResponse = {
-  success: boolean
+  success?: boolean
+  message: string
+  client?: string
+  membership?: MembershipInfo | null
+  daysPending?: number
 }
 
 type Mode = "qr" | "manual"
@@ -35,45 +53,109 @@ export function AccessClientModal() {
   const [scanStatus, setScanStatus] = useState<string>("Inicializando cámara...")
   const [scanError, setScanError] = useState<string>("")
   const [accessGranted, setAccessGranted] = useState(false)
+  const [accessData, setAccessData] = useState<QrLoginResponse | null>(null)
   const scannerRef = useRef<Html5Qrcode | null>(null)
-  const isScanningRef = useRef(false)
   const readerId = useId().replace(/:/g, "")
   const scannerElementId = `reader-${readerId}`
 
-  const manageResponse = (response: { data: QrLoginResponse }) => {
-    console.log("Request exitoso:", response.data)
+  const stopScanner = async (scannerInstance = scannerRef.current) => {
+    if (!scannerInstance) {
+      return
+    }
 
-    if (response.data.success) {
+    const shouldResetRef = scannerRef.current === scannerInstance
+
+    try {
+      const scannerState = scannerInstance.getState()
+
+      if (
+        scannerState === Html5QrcodeScannerState.SCANNING ||
+        scannerState === Html5QrcodeScannerState.PAUSED
+      ) {
+        await scannerInstance.stop()
+      }
+    } catch (error: unknown) {
+      console.error("Error stopping scanner:", error)
+    } finally {
+      try {
+        scannerInstance.clear()
+      } catch (error: unknown) {
+        console.error("Error clearing scanner:", error)
+      } finally {
+        if (shouldResetRef) {
+          scannerRef.current = null
+        }
+      }
+    }
+  }
+
+  const resetAccessFlow = () => {
+    setAccessGranted(false)
+    setAccessData(null)
+    setScanError("")
+    setScanStatus("Inicializando cámara...")
+    setMode("qr")
+    setManualInput("")
+    setManualError("")
+    setManualLoading(false)
+  }
+
+  const formatDuration = (membership?: MembershipInfo | null) => {
+    const value = membership?.duration?.value
+    const unit = membership?.duration?.unit
+
+    if (!value || !unit) {
+      return "No disponible"
+    }
+
+    const labels: Record<string, { singular: string, plural: string }> = {
+      days: { singular: "día", plural: "días" },
+      weeks: { singular: "semana", plural: "semanas" },
+      months: { singular: "mes", plural: "meses" },
+      years: { singular: "año", plural: "años" },
+    }
+
+    const unitLabel = labels[unit] ?? { singular: unit, plural: unit }
+    return `${value} ${value === 1 ? unitLabel.singular : unitLabel.plural}`
+  }
+
+
+
+  const formatDaysPending = (daysPending?: number) => {
+    if (typeof daysPending !== "number") {
+      return "No disponible"
+    }
+
+    if (daysPending <= 0) {
+      return "Vence hoy"
+    }
+
+    if (daysPending === 1) {
+      return "1 día restante"
+    }
+
+    return `${daysPending} días restantes`
+  }
+
+  const manageResponse = (data: QrLoginResponse) => {
+    console.log("Request exitoso:", data)
+
+    if (!data.success) {
+      setScanError(data.message ?? "No se pudo registrar el acceso")
+      setScanStatus("")
+      return
+    }
+
+    if (data.success) {
       console.log("el usuario ha accedido correctamente")
       setAccessGranted(true)
-      setScanStatus("Acceso concedido")
+      setAccessData(data)
+      setScanStatus(data.message)
       setScanError("")
 
       const scannerInstance = scannerRef.current
-      if (scannerInstance && isScanningRef.current) {
-        scannerInstance
-          .stop()
-          .then(() => {
-            try {
-              scannerInstance.clear()
-            } catch (error: unknown) {
-              console.error("Error clearing scanner:", error)
-            } finally {
-              scannerRef.current = null
-              isScanningRef.current = false
-            }
-          })
-          .catch((error) => {
-            console.error("Error stopping scanner:", error)
-            try {
-              scannerInstance.clear()
-            } catch (clearError: unknown) {
-              console.error("Error clearing scanner:", clearError)
-            } finally {
-              scannerRef.current = null
-              isScanningRef.current = false
-            }
-          })
+      if (scannerInstance) {
+        void stopScanner(scannerInstance)
       }
     }
   }
@@ -92,8 +174,8 @@ export function AccessClientModal() {
     const body = isEmail ? { email: value } : { phone: value }
 
     try {
-      const response = await axios.post(contactApiUrl, body)
-      manageResponse(response)
+      const response = await axios.post<QrLoginResponse>(contactApiUrl, body)
+      manageResponse(response.data)
     } catch (error: unknown) {
       if (axios.isAxiosError(error) && error.response) {
         setManualError(error.response.data?.message ?? "Error al registrar acceso")
@@ -139,11 +221,19 @@ export function AccessClientModal() {
       console.log(apiUrl)
       axios.post(apiUrl, { qrData: decodedText })
         .then((response) => {
-          manageResponse(response)
+          manageResponse(response.data)
         })
-        .catch((error) => {
+        .catch((error: unknown) => {
           console.error("Error en login con QR:", error)
-          // Aquí puedes manejar errores, como mostrar un mensaje al usuario
+          if (!mounted) return
+
+          if (axios.isAxiosError(error) && error.response) {
+            setScanError(error.response.data?.message ?? "Error al registrar acceso")
+          } else {
+            setScanError("Error de red. Intenta nuevamente.")
+          }
+
+          setScanStatus("")
         })
     }
 
@@ -197,8 +287,12 @@ export function AccessClientModal() {
           await scanner.start(cameras[0].id, config, onDecodeSuccess, onDecodeError)
         }
 
+        if (!mounted) {
+          await stopScanner(scanner)
+          return
+        }
+
         if (mounted) {
-          isScanningRef.current = true
           setScanStatus("Escaneando... acerca el QR al recuadro")
           setScanError("")
         }
@@ -216,32 +310,7 @@ export function AccessClientModal() {
     return () => {
       mounted = false
       cancelAnimationFrame(frameId)
-
-      if (scannerRef.current) {
-        const scannerInstance = scannerRef.current
-        const clearScanner = () => {
-          try {
-            scannerInstance.clear()
-          } catch (error: unknown) {
-            console.error("Error clearing scanner:", error)
-          } finally {
-            scannerRef.current = null
-            isScanningRef.current = false
-          }
-        }
-
-        if (isScanningRef.current) {
-          scannerInstance
-            .stop()
-            .then(clearScanner)
-            .catch((error) => {
-              console.error("Error stopping scanner:", error)
-              clearScanner()
-            })
-        } else {
-          clearScanner()
-        }
-      }
+      void stopScanner()
     }
   }, [open, scannerElementId, accessGranted, apiUrl, mode])
 
@@ -252,12 +321,7 @@ export function AccessClientModal() {
       onOpenChange={(nextOpen) => {
         setOpen(nextOpen)
         if (nextOpen) {
-          setAccessGranted(false)
-          setScanError("")
-          setScanStatus("Inicializando cámara...")
-          setMode("qr")
-          setManualInput("")
-          setManualError("")
+          resetAccessFlow()
         }
       }}
     >
@@ -270,24 +334,78 @@ export function AccessClientModal() {
 
       <DialogContent className="sm:max-w-md">
         {accessGranted ? (
-          <div className="relative mt-4 rounded-md border border-green-300 bg-green-100 p-6">
-            {/* <button
-              type="button"
-              aria-label="Cerrar"
-              className="absolute right-3 top-3 rounded-sm p-1 text-green-900 hover:bg-green-200"
-              onClick={() => {
-                setAccessGranted(false)
-                setOpen(false)
-              }}
-            >
-              <X className="h-5 w-5" />
-            </button> */}
+          <div className="mt-4 rounded-md border border-green-300 bg-green-50 p-6">
+            <div className="flex flex-col items-center text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-green-700">
+                <CheckCircle2 className="h-7 w-7" />
+              </div>
 
-            <div className="mt-4 text-center">
-              <h3 className="text-lg font-semibold text-green-900">Acceso concedido</h3>
-              <p className="mt-2 text-sm text-green-800">
-                El usuario puede acceder correctamente.
-              </p>
+              <div className="mt-4">
+                <h3 className="text-lg font-semibold text-green-900">
+                  {accessData?.message ?? "Acceso concedido"}
+                </h3>
+                <p className="mt-2 text-sm text-green-800">
+                  Se registró el acceso correctamente para el cliente.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-md border border-green-200 bg-white/80 p-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-green-700">Cliente</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">
+                  {accessData?.client ?? "No disponible"}
+                </p>
+              </div>
+
+              <div className="rounded-md border border-green-200 bg-white/80 p-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-green-700">Plan</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">
+                  {accessData?.membership?.name ?? "No disponible"}
+                </p>
+              </div>
+
+              <div className="rounded-md border border-green-200 bg-white/80 p-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-green-700">Duración</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">
+                  {formatDuration(accessData?.membership)}
+                </p>
+              </div>
+
+              <div className="rounded-md border border-green-200 bg-white/80 p-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-green-700">Vigencia</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">
+                  {formatDaysPending(accessData?.daysPending)}
+                </p>
+              </div>
+
+              {/* <div className="rounded-md border border-green-200 bg-white/80 p-3 sm:col-span-2">
+                <p className="text-xs font-medium uppercase tracking-wide text-green-700">Precio</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">
+                  {formatPrice(accessData?.membership)}
+                </p>
+              </div> */}
+            </div>
+
+            {accessData?.membership?.description ? (
+              <>
+                <Separator className="my-4 bg-green-200" />
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-green-700">Descripción del plan</p>
+                  <p className="mt-2 text-sm text-slate-700">
+                    {accessData.membership.description}
+                  </p>
+                </div>
+              </>
+            ) : null}
+
+            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button variant="outline" onClick={resetAccessFlow}>
+                Registrar otro acceso
+              </Button>
+              <Button onClick={() => setOpen(false)}>
+                Cerrar
+              </Button>
             </div>
           </div>
         ) : (

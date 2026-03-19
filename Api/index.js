@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 
 import "./src/config/db.config.js"
+import "./src/services/Cronjobs.services.js"
 
 const app = express();
 const PORT = process.env.PORT || 3000;

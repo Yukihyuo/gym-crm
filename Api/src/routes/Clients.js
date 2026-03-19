@@ -7,6 +7,7 @@ import Visit from "../models/Visit.js"
 import Brand from "../models/Brand.js"
 import SubscriptionAssignment from "../models/SubscriptionAssignment.js"
 import { sendWelcomeEmail } from "../emails/email.handler.js"
+import { findClientByIdentifier, registerVisit } from "../services/Access.services.js"
 
 
 const router = express.Router()
@@ -550,63 +551,6 @@ router.get('/assistance/:clientId', async (req, res) => {
 
 })
 
-const findClientByIdentifier = async (identifier) => {
-  if (!identifier || typeof identifier !== 'string') {
-    return null
-  }
-
-  const value = identifier.trim()
-  if (!value) {
-    return null
-  }
-
-  const normalizedPhone = value.replace(/\D/g, '')
-  const phoneCandidates = [value]
-
-  if (normalizedPhone && normalizedPhone !== value) {
-    phoneCandidates.push(normalizedPhone)
-  }
-
-  return Client.findOne({
-    $or: [
-      { _id: value },
-      { username: value },
-      { 'profile.phone': { $in: phoneCandidates } }
-    ]
-  })
-}
-
-const registerQrVisit = async (client, method) => {
-  const sub = await SubscriptionAssignment.findOne({ clientId: client._id, status: 'active' })
-
-  if (!sub) {
-    return {
-      ok: false,
-      status: 403,
-      payload: {
-        message: 'El cliente no tiene una suscripción activa'
-      }
-    }
-  }
-
-  await Visit.create({
-    brandId: client.brandId,
-    storeId: client.storeId,
-    clientId: client._id,
-    accessMethod: method,
-    isTrial: sub.isTrial
-  })
-
-  return {
-    ok: true,
-    status: 200,
-    payload: {
-      message: 'QR decodificado exitosamente',
-      success: true,
-    }
-  }
-}
-
 router.post('/login-qr', async (req, res) => {
   try {
     const { qrData } = req.body;
@@ -625,7 +569,7 @@ router.post('/login-qr', async (req, res) => {
       });
     }
 
-    const result = await registerQrVisit(client, 'qr')
+    const result = await registerVisit(client, 'qr')
     return res.status(result.status).json(result.payload)
 
   } catch (error) {
@@ -656,7 +600,7 @@ router.post('/login-qr-contact', async (req, res) => {
       })
     }
 
-    const result = await registerQrVisit(client, 'manual')
+    const result = await registerVisit(client, 'manual')
     return res.status(result.status).json(result.payload)
   } catch (error) {
     console.error('Error en login-qr-contact:', error)
