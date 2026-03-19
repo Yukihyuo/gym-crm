@@ -33,6 +33,8 @@ services:
       - databaseUrl=mongodb://Sys73mUs3r:AddzTMW4ciJ5CzZiiMBF@mongodb:27017/gimnasios?authSource=admin
       - jwtSecret=YxoSrXRQTjdOaUGfEXewIOhG
       - PORT=3010
+      - EmailSend=itsaltilloquentli@gmail.com
+      - EmailPasswordApp=bioqricozxcgrdqp
     ports:
       - "3010:3010"
     depends_on:
