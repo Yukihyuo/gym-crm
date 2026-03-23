@@ -12,7 +12,19 @@ export const API_ENDPOINTS = {
     GET_ALL: `${API_URL}v1/brands/getAll`,
     GET_BY_ID: (brandId: string) => `${API_URL}v1/brands/getById/${brandId}`,
     UPDATE: (brandId: string) => `${API_URL}v1/brands/update/${brandId}`,
+    GET_CONFIG: `v1/brands/config`,
+    UPDATE_CONFIG: `v1/brands/config`,
     DELETE: (brandId: string) => `${API_URL}v1/brands/delete/${brandId}`
+  },
+
+  CASH_CUTS: {
+    OPEN: `v1/cash-cuts/open`,
+    CLOSE: (cashCutId: string) => `v1/cash-cuts/close/${cashCutId}`,
+    UPDATE: (cashCutId: string) => `v1/cash-cuts/update/${cashCutId}`,
+    GET_OPEN_BY_USER: (userId: string) => `v1/cash-cuts/open/${userId}`,
+    GET_ALL: `v1/cash-cuts/getAll`,
+    GET_BY_ID: (cashCutId: string) => `v1/cash-cuts/getById/${cashCutId}`,
+    DELETE: (cashCutId: string) => `v1/cash-cuts/delete/${cashCutId}`
   },
 
   STORES: {

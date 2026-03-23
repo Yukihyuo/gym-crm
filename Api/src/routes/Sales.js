@@ -5,6 +5,7 @@ import Sale from '../models/Sale.js';
 import Staff from '../models/Staff.js';
 import Store from '../models/Store.js';
 import Client from '../models/Client.js';
+import { updateCashCutWithDocument } from './CashCuts.js';
 
 const router = express.Router();
 
@@ -144,6 +145,15 @@ router.post('/create', async (req, res) => {
     });
 
     await sale.save();
+
+    // Actualizar cash cut si existe el header X-Cash-Cut-Id
+    const cashCutId = req.headers['x-cash-cut-id'];
+    if (cashCutId) {
+      await updateCashCutWithDocument(cashCutId, 'sale', sale._id.toString(), {
+        payment: sale.payment,
+        totals: sale.totals
+      });
+    }
 
     // Reducir el stock de cada producto
     for (const { product, quantity } of productsData) {

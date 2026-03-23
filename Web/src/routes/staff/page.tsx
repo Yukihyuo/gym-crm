@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { NewUserModal } from '@/components/users/NewUserModal'
 import { API_ENDPOINTS } from '@/config/api'
 import axios from 'axios'
-import { User, MoreHorizontal } from 'lucide-react'
+import { User } from 'lucide-react'
 import React, { useEffect, useState, useCallback } from 'react'
 import {
   useReactTable,
@@ -19,6 +19,7 @@ import {
 import { Input } from '@/components/ui/input'
 
 import { useAuthStore } from '@/store/authStore'
+import ProtectedModule from '@/components/global/ProtectedModule'
 
 interface Role {
   id: string
@@ -130,19 +131,19 @@ export default function Page() {
         </div>
       ),
     },
-    {
-      id: "actions",
-      header: "Acciones",
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      cell: ({ row }) => {
-        // TODO: Agregar acciones específicas aquí
-        return (
-          <Button variant="ghost" size="sm">
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        )
-      },
-    },
+    // {
+    //   id: "actions",
+    //   header: "Acciones",
+    //   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    //   cell: ({ row }) => {
+    //     // TODO: Agregar acciones específicas aquí
+    //     return (
+    //       <Button variant="ghost" size="sm">
+    //         <MoreHorizontal className="h-4 w-4" />
+    //       </Button>
+    //     )
+    //   },
+    // },
   ]
 
   const table = useReactTable({
@@ -177,7 +178,9 @@ export default function Page() {
       <div className="space-y-4">
         {/* Barra de búsqueda */}
         <div className="flex items-center justify-between gap-2">
-          <NewUserModal onSuccess={asyncLoad} />
+          <ProtectedModule page="Staff" type="create" method="hide">
+            <NewUserModal onSuccess={asyncLoad} />
+          </ProtectedModule>
           <Input
             placeholder="Buscar usuarios..."
             value={globalFilter ?? ""}

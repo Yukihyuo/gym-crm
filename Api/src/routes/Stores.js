@@ -46,7 +46,8 @@ router.post('/create', async (req, res) => {
 // GetAll - Obtener todas las tiendas
 router.get('/getAll', async (req, res) => {
   try {
-    const stores = await Store.find().sort({ createdAt: -1 });
+    const brandId = req.headers['x-brand-id'];
+    const stores = await Store.find({ brandId }).sort({ createdAt: -1 });
 
     res.status(200).json({
       message: 'Tiendas obtenidas exitosamente',

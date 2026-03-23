@@ -7,6 +7,7 @@ import Pages from "./routes/pages/page";
 import Roles from "./routes/roles/page";
 import Sales from "./routes/sales/page";
 import Schedule from "./routes/schedule/page";
+import Access from "./routes/access/page";
 import Layout from "./components/layout/Layout";
 import Pruebas from "./routes/pruebas/page";
 import ProtectedModule from "./components/global/ProtectedModule";
@@ -47,13 +48,13 @@ const router = createBrowserRouter([
       },
       {
         path: "/subscriptions",
-        element: <ProtectedModule page="Stores" type="read" method="block" >
+        element: <ProtectedModule page="Subscriptions" type="read" method="block" >
           <Subscriptions />
         </ProtectedModule>,
       },
       {
         path: "/subscriptions-assignment",
-        element: <ProtectedModule page="Stores" type="read" method="block" >
+        element: <ProtectedModule page="SubscriptionsAssignments" type="read" method="block" >
           <SubscriptionsAssignment />
         </ProtectedModule>,
       },
@@ -64,7 +65,7 @@ const router = createBrowserRouter([
         </ProtectedModule>,
       }, {
         path: "/clients",
-        element: <ProtectedModule page="Staff" type="read" method="block" >
+        element: <ProtectedModule page="Clients" type="read" method="block" >
           <Clients />
         </ProtectedModule>,
       },
@@ -85,6 +86,10 @@ const router = createBrowserRouter([
         element: <ProtectedModule page="Schedule" type="read" method="block" >
           <Schedule />
         </ProtectedModule>,
+      },
+      {
+        path: "/access",
+        element: <Access />,
       },
       {
         path: "/pruebas",

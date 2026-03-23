@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { toast } from 'react-toastify'
 import { useAuthStore } from '@/store/authStore'
+import ProtectedModule from '@/components/global/ProtectedModule'
 
 interface ProductData {
   _id: string
@@ -211,32 +212,39 @@ export default function Page() {
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Acciones</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => {
-                  setSelectedProduct(product)
-                  setViewOpen(true)
-                }}
-              >
-                <Eye className="mr-2 h-4 w-4" />
-                Ver detalles
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => {
-                  setSelectedProduct(product)
-                  setEditOpen(true)
-                }}
-              >
-                <Pencil className="mr-2 h-4 w-4" />
-                Editar
-              </DropdownMenuItem>
+              <ProtectedModule page="Inventory" type="read" method="hide">
+                <DropdownMenuItem
+                  onClick={() => {
+                    setSelectedProduct(product)
+                    setViewOpen(true)
+                  }}
+                >
+                  <Eye className="mr-2 h-4 w-4" />
+                  Ver detalles
+                </DropdownMenuItem>
+              </ProtectedModule>
+
+              <ProtectedModule page="Inventory" type="update" method="hide">
+                <DropdownMenuItem
+                  onClick={() => {
+                    setSelectedProduct(product)
+                    setEditOpen(true)
+                  }}
+                >
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Editar
+                </DropdownMenuItem>
+              </ProtectedModule>
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-red-600"
-                onClick={() => handleDelete(product._id)}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Eliminar
-              </DropdownMenuItem>
+              <ProtectedModule page="Inventory" type="delete" method="hide">
+                <DropdownMenuItem
+                  className="text-red-600"
+                  onClick={() => handleDelete(product._id)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Eliminar
+                </DropdownMenuItem>
+              </ProtectedModule >
             </DropdownMenuContent>
           </DropdownMenu>
         )
@@ -276,7 +284,9 @@ export default function Page() {
       <div className="space-y-4">
         {/* Barra de búsqueda y botón crear */}
         <div className="flex items-center justify-between gap-2">
-          <NewProduct onProductCreated={asyncLoad} />
+          <ProtectedModule page="Inventory" type="create" method="hide">
+            <NewProduct onProductCreated={asyncLoad} />
+          </ProtectedModule>
           <Input
             placeholder="Buscar productos..."
             value={globalFilter ?? ""}

@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { DropdownMenuItem } from '../ui/dropdown-menu'
-import { Eye, Loader2 } from 'lucide-react'
+import { Loader2, Salad } from 'lucide-react'
 import { API_ENDPOINTS } from '@/config/api'
 import { useAuthStore } from '@/store/authStore'
 import ViewDietDetails from './ViewDietDetails'
@@ -89,7 +89,7 @@ export default function ViewClientDiets({ clientId, onClose }: Props) {
             setOpen(true)
           }}
         >
-          <Eye className="mr-2 h-4 w-4" />
+          <Salad className="mr-2 h-4 w-4" />
           Ver dietas
         </DropdownMenuItem>
       </DialogTrigger>

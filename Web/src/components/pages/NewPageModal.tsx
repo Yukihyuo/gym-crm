@@ -27,14 +27,14 @@ const pageSchema = z.object({
   path: z.string()
     .min(1, "La ruta es requerida")
     .regex(/^\/[a-zA-Z0-9\-_/]*$/, "La ruta debe comenzar con / y contener solo letras, números, guiones y barras"),
-  moduleTypes: z.array(z.enum(["read", "write", "delete", "update"])).default([])
+  moduleTypes: z.array(z.enum(["read", "create", "delete", "update"])).default([])
 })
 
 type PageFormValues = z.infer<typeof pageSchema>
 
 const MODULE_OPTIONS = [
   { value: "read", label: "Lectura (Read)" },
-  { value: "write", label: "Escritura (Write)" },
+  { value: "create", label: "Escritura (Create)" },
   { value: "update", label: "Actualización (Update)" },
   { value: "delete", label: "Eliminación (Delete)" },
 ] as const
@@ -70,7 +70,7 @@ export function NewPageModal({ onSuccess, trigger }: NewPageModalProps) {
         ? prev.filter((m) => m !== moduleValue)
         : [...prev, moduleValue]
       
-      setValue("moduleTypes", newModules as ("read" | "write" | "delete" | "update")[])
+      setValue("moduleTypes", newModules as ("read" | "create" | "delete" | "update")[])
       return newModules
     })
   }

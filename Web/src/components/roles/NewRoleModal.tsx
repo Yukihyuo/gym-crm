@@ -21,13 +21,14 @@ import { API_ENDPOINTS } from "@/config/api"
 
 
 import { useAuthStore } from '@/store/authStore'
+import ProtectedModule from "../global/ProtectedModule"
 
 // Schema de validación con Zod
 const roleSchema = z.object({
   name: z.string()
     .min(1, "El nombre es requerido")
     .max(50, "El nombre no puede exceder 50 caracteres"),
-  modules: z.array(z.string()).default([])
+  permissions: z.array(z.string()).default([])
 })
 
 type RoleFormValues = z.infer<typeof roleSchema>
@@ -35,7 +36,7 @@ type RoleFormValues = z.infer<typeof roleSchema>
 interface Module {
   _id: string
   pageId: string
-  type: "read" | "write" | "delete" | "update"
+  type: "read" | "create" | "delete" | "update"
 }
 
 interface Page {
@@ -71,7 +72,7 @@ export function NewRoleModal({ onSuccess, trigger }: NewRoleModalProps) {
     resolver: zodResolver(roleSchema) as any,
     defaultValues: {
       name: "",
-      modules: [],
+      permissions: [],
     },
   })
 
@@ -100,8 +101,8 @@ export function NewRoleModal({ onSuccess, trigger }: NewRoleModalProps) {
       const newModules = prev.includes(moduleId)
         ? prev.filter((m) => m !== moduleId)
         : [...prev, moduleId]
-      
-      setValue("modules", newModules)
+
+      setValue("permissions", newModules)
       return newModules
     })
   }
@@ -109,19 +110,19 @@ export function NewRoleModal({ onSuccess, trigger }: NewRoleModalProps) {
   const handlePageToggle = (page: Page) => {
     const pageModuleIds = page.moduleDetails.map(m => m._id)
     const allSelected = pageModuleIds.every(id => selectedModules.includes(id))
-    
+
     if (allSelected) {
       // Deseleccionar todos los módulos de esta página
       setSelectedModules(prev => {
         const newModules = prev.filter(id => !pageModuleIds.includes(id))
-        setValue("modules", newModules)
+        setValue("permissions", newModules)
         return newModules
       })
     } else {
       // Seleccionar todos los módulos de esta página
       setSelectedModules(prev => {
         const newModules = [...new Set([...prev, ...pageModuleIds])]
-        setValue("modules", newModules)
+        setValue("permissions", newModules)
         return newModules
       })
     }
@@ -154,16 +155,16 @@ export function NewRoleModal({ onSuccess, trigger }: NewRoleModalProps) {
       const response = await axios.post(API_ENDPOINTS.ROLES.CREATE, {
         brandId,
         name: data.name,
-        modules: data.modules,
+        permissions: data.permissions,
       })
 
       toast.success(response.data.message || "Rol creado exitosamente")
-      
+
       // Reset form y cerrar modal
       reset()
       setSelectedModules([])
       setOpen(false)
-      
+
       // Callback de éxito
       if (onSuccess) {
         onSuccess()
@@ -192,9 +193,12 @@ export function NewRoleModal({ onSuccess, trigger }: NewRoleModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        {trigger || <Button>Nuevo Rol</Button>}
-      </DialogTrigger>
+      <ProtectedModule page="Roles" type="create" method="hide">
+        <DialogTrigger asChild>
+          {trigger || <Button>Nuevo Rol</Button>}
+        </DialogTrigger>
+      </ProtectedModule>
+
       <DialogContent className="sm:max-w-150">
         <DialogHeader>
           <DialogTitle>Crear Nuevo Rol</DialogTitle>
@@ -226,7 +230,7 @@ export function NewRoleModal({ onSuccess, trigger }: NewRoleModalProps) {
               <p className="text-xs text-muted-foreground">
                 Selecciona los permisos que tendrá este rol en cada página
               </p>
-              
+
               {isLoadingPages ? (
                 <div className="py-4 text-center text-sm text-muted-foreground">
                   Cargando páginas...
@@ -255,7 +259,7 @@ export function NewRoleModal({ onSuccess, trigger }: NewRoleModalProps) {
                           {page.name} <span className="text-muted-foreground font-normal">({page.path})</span>
                         </label>
                       </div>
-                      
+
                       {/* Checkboxes individuales por módulo */}
                       {page.moduleDetails.length > 0 ? (
                         <div className="ml-6 grid grid-cols-2 gap-2">
@@ -309,6 +313,6 @@ export function NewRoleModal({ onSuccess, trigger }: NewRoleModalProps) {
           </DialogFooter>
         </form>
       </DialogContent>
-    </Dialog>
+    </Dialog >
   )
 }

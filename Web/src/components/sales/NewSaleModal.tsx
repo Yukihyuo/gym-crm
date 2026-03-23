@@ -31,6 +31,8 @@ import {
 } from "@/components/ui/table"
 import { API_ENDPOINTS } from "@/config/api"
 import { useAuthStore } from "@/store/authStore"
+import { useBrandConfigStore } from "@/store/brandConfigStore"
+import { useCashCutStore } from "@/store/cashCutStore"
 import {
   Command,
   CommandEmpty,
@@ -95,6 +97,21 @@ export function NewSaleModal({ onSuccess, trigger }: NewSaleModalProps) {
   const activeStoreId = useAuthStore((state) => state.getActiveStoreId())
   const brandId = useAuthStore((state) => state.getBrandId())
   const token = useAuthStore((state) => state.token)
+  const requireCashClosing = useBrandConfigStore((state) => state.config?.requireCashClosing ?? false)
+  const cashCutId = useCashCutStore((state) => state.cashCutId)
+
+  const canOpenSaleModal = useCallback(() => {
+    if (!requireCashClosing) {
+      return true
+    }
+
+    if (!cashCutId) {
+      toast.error("Debes abrir la caja antes de registrar una venta.")
+      return false
+    }
+
+    return true
+  }, [cashCutId, requireCashClosing])
 
   const fetchProducts = useCallback(async () => {
     if (!activeStoreId) {
@@ -309,6 +326,11 @@ export function NewSaleModal({ onSuccess, trigger }: NewSaleModalProps) {
       return
     }
 
+    if (requireCashClosing && !cashCutId) {
+      toast.error("Debes abrir la caja antes de registrar una venta.")
+      return
+    }
+
     if (paymentMethod === "cash") {
       const paid = parseFloat(amountPaid) || 0
       if (paid < total) {
@@ -341,7 +363,12 @@ export function NewSaleModal({ onSuccess, trigger }: NewSaleModalProps) {
         },
       }
 
-      const response = await axios.post(API_ENDPOINTS.SALES.CREATE, saleData)
+      const response = await axios.post(API_ENDPOINTS.SALES.CREATE, saleData, {
+        headers: {
+          Authorization: token,
+          ...(cashCutId ? { "X-Cash-Cut-Id": cashCutId } : {}),
+        },
+      })
 
       toast.success(`Venta creada exitosamente. Recibo: ${response.data.sale.receiptNumber}`)
       setOpen(false)
@@ -359,7 +386,16 @@ export function NewSaleModal({ onSuccess, trigger }: NewSaleModalProps) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (nextOpen && !canOpenSaleModal()) {
+          return
+        }
+
+        setOpen(nextOpen)
+      }}
+    >
       <DialogTrigger asChild>
         {trigger || (
           <Button>
@@ -488,7 +524,7 @@ export function NewSaleModal({ onSuccess, trigger }: NewSaleModalProps) {
                     <TableHead className="text-right">Precio</TableHead>
                     <TableHead className="text-center">Cantidad</TableHead>
                     <TableHead className="text-right">Subtotal</TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
+                    <TableHead className="w-12.5"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

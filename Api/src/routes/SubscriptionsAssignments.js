@@ -5,6 +5,7 @@ import SubscriptionAssignment from "../models/SubscriptionAssignment.js"
 import Client from "../models/Client.js"
 import Store from "../models/Store.js"
 import Subscription from "../models/Subscription.js"
+import { updateCashCutWithDocument } from "./CashCuts.js";
 
 const router = express.Router()
 
@@ -22,10 +23,10 @@ const calculateEndDate = (startDate, duration) => {
 // --- ENDPOINT: CREAR ASIGNACIÓN (CORREGIDO) ---
 router.post('/create', async (req, res) => {
   try {
-    const { clientId, storeId, planId } = req.body;
+    const { clientId, storeId, planId, paymentMethod } = req.body;
 
-    if (!clientId || !storeId || !planId) {
-      return res.status(400).json({ message: 'clientId, storeId y planId son requeridos' });
+    if (!clientId || !storeId || !planId || !paymentMethod) {
+      return res.status(400).json({ message: 'clientId, storeId, planId y paymentMethod son requeridos' });
     }
 
     const [client, store, subscription] = await Promise.all([
@@ -69,9 +70,19 @@ router.post('/create', async (req, res) => {
       startDate: assignmentStartDate,
       endDate: assignmentEndDate,
       pricePaid: Number(subscription.price?.amount || 0),
+      paymentMethod
     });
 
     await newAssignment.save();
+
+    // Actualizar cash cut si existe el header X-Cash-Cut-Id
+    const cashCutId = req.headers['x-cash-cut-id'];
+    if (cashCutId) {
+      await updateCashCutWithDocument(cashCutId, 'subscription', newAssignment._id.toString(), {
+        paymentMethod: newAssignment.paymentMethod,
+        pricePaid: newAssignment.pricePaid
+      });
+    }
 
     res.status(201).json({
       message: 'Membresía asignada exitosamente',

@@ -1,4 +1,6 @@
 import { AppSidebar } from "@/components/layout/app-sidebar"
+import { useAuthStore } from "@/store/authStore"
+import { useBrandConfigStore } from "@/store/brandConfigStore"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -13,9 +15,29 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar"
+import { useEffect } from "react"
 import { Outlet } from "react-router-dom"
 
 export default function Layout({ children }: { children?: React.ReactNode }) {
+  const brandId = useAuthStore((state) => state.getBrandId())
+  const fetchConfig = useBrandConfigStore((state) => state.fetchConfig)
+  const clearConfig = useBrandConfigStore((state) => state.clearConfig)
+  const loadedBrandId = useBrandConfigStore((state) => state.loadedBrandId)
+  const config = useBrandConfigStore((state) => state.config)
+
+  useEffect(() => {
+    if (!brandId) {
+      clearConfig()
+      return
+    }
+
+    if (loadedBrandId === brandId && config) {
+      return
+    }
+
+    void fetchConfig(brandId)
+  }, [brandId, clearConfig, config, fetchConfig, loadedBrandId])
+
   return (
     <SidebarProvider>
       <AppSidebar />

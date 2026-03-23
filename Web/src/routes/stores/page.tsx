@@ -2,9 +2,6 @@ import { PageHeader } from '@/components/global/PageHeader'
 import { Button } from '@/components/ui/button'
 import CreateStoreModal from '@/components/stores/CreateStoreModal'
 import DetailsStoreModal from '@/components/stores/DetailsStoreModal'
-// import { NewProduct } from '@/components/Products/NewProduct'
-// import { EditProduct } from '@/components/Products/EditProduct'
-// import { ViewProduct } from '@/components/Products/ViewProduct'
 import { API_ENDPOINTS } from '@/config/api'
 import axios from 'axios'
 import { Package, MoreHorizontal, Trash2 } from 'lucide-react'
@@ -31,6 +28,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { toast } from 'react-toastify'
 import { useAuthStore } from '@/store/authStore'
+import ProtectedModule from '@/components/global/ProtectedModule'
+import apiClient from '@/lib/axios'
 
 interface Data {
   _id: string
@@ -46,11 +45,7 @@ export default function Page() {
   const asyncLoad = useCallback(async () => {
     setLoading(true)
     try {
-      const response = await axios.get(API_ENDPOINTS.STORES.GET_ALL, {
-        headers: {
-          Authorization: useAuthStore.getState().token
-        }
-      })
+      const response = await apiClient.get("v1/stores/getAll")
       console.log("stores load:", response.data)
       setData(response.data.stores || [])
     } catch (error) {
@@ -116,15 +111,20 @@ export default function Page() {
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Acciones</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DetailsStoreModal storeId={store._id} onStoreUpdated={asyncLoad} />
+              <ProtectedModule page="Stores" type="read" method="hide">
+                <DetailsStoreModal storeId={store._id} onStoreUpdated={asyncLoad} />
+              </ProtectedModule>
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-red-600"
-                onClick={() => handleDelete(store._id)}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Eliminar
-              </DropdownMenuItem>
+              <ProtectedModule page="Stores" type="delete" method="hide">
+                <DropdownMenuItem
+                  className="text-red-600"
+                  onClick={() => handleDelete(store._id)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Eliminar
+                </DropdownMenuItem>
+              </ProtectedModule>
+
             </DropdownMenuContent>
           </DropdownMenu>
         )
@@ -164,7 +164,9 @@ export default function Page() {
       <div className="space-y-4">
         {/* Barra de búsqueda y botón crear */}
         <div className="flex items-center justify-between gap-2">
-          <CreateStoreModal onStoreCreated={asyncLoad} />
+          <ProtectedModule page="Stores" type="create" method="hide">
+            <CreateStoreModal onStoreCreated={asyncLoad} />
+          </ProtectedModule>
           <Input
             placeholder="Buscar tiendas..."
             value={globalFilter ?? ""}

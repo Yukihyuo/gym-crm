@@ -34,6 +34,12 @@ const subscriptionAssignmentSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  paymentMethod: {
+    type: String,
+    enum: ['cash', 'card', 'transfer'],
+    default: 'cash',
+    required: true
+  },
   status: {
     type: String,
     enum: ['active', 'expired', 'cancelled'],

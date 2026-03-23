@@ -38,14 +38,14 @@ router.post('/create', async (req, res) => {
 
     // Crear módulos si se proporcionaron
     if (moduleTypes && Array.isArray(moduleTypes) && moduleTypes.length > 0) {
-      const validTypes = ['read', 'write', 'delete', 'update'];
+      const validTypes = ['read', 'create', 'delete', 'update'];
       const moduleIds = [];
 
       for (const type of moduleTypes) {
         if (!validTypes.includes(type)) {
           await Page.findByIdAndDelete(newPage._id);
           return res.status(400).json({ 
-            message: `Tipo de módulo inválido: ${type}. Debe ser: read, write, delete o update` 
+            message: `Tipo de módulo inválido: ${type}. Debe ser: read, create, delete o update` 
           });
         }
 
@@ -259,14 +259,14 @@ router.post('/addModules/:id', async (req, res) => {
       });
     }
 
-    const validTypes = ['read', 'write', 'delete', 'update'];
+    const validTypes = ['read', 'create', 'delete', 'update'];
     const moduleIds = [];
 
     // Crear los nuevos módulos
     for (const type of moduleTypes) {
       if (!validTypes.includes(type)) {
         return res.status(400).json({ 
-          message: `Tipo de módulo inválido: ${type}. Debe ser: read, write, delete o update` 
+          message: `Tipo de módulo inválido: ${type}. Debe ser: read, create, delete o update` 
         });
       }
 

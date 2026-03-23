@@ -9,8 +9,16 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
   (config) => {
     const token = useAuthStore.getState().token
+    const brandId = useAuthStore.getState().getBrandId()
+    const activeStoreId = useAuthStore.getState().getActiveStoreId()
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
+    }
+    if (brandId) {
+      config.headers['X-Brand-Id'] = brandId
+    }
+    if (activeStoreId) {
+      config.headers['X-Store-Id'] = activeStoreId
     }
     return config
   },

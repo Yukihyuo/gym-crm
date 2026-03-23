@@ -34,7 +34,7 @@ type PageFormValues = z.infer<typeof pageSchema>
 interface Module {
   _id: string
   pageId: string
-  type: "read" | "write" | "delete" | "update"
+  type: "read" | "create" | "delete" | "update"
 }
 
 interface Page {
@@ -53,7 +53,7 @@ interface EditPageModalProps {
 
 const MODULE_OPTIONS = [
   { value: "read", label: "Lectura (Read)" },
-  { value: "write", label: "Escritura (Write)" },
+  { value: "create", label: "Creación (Create)" },
   { value: "update", label: "Actualización (Update)" },
   { value: "delete", label: "Eliminación (Delete)" },
 ] as const
@@ -91,7 +91,7 @@ export function EditPageModal({ page, onSuccess, trigger }: EditPageModalProps) 
   const getModuleTypeLabel = (type: string) => {
     const labels: Record<string, string> = {
       read: "Lectura",
-      write: "Escritura",
+      create: "Escritura",
       update: "Actualización",
       delete: "Eliminación"
     }

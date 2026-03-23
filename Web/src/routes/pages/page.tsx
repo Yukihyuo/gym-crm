@@ -25,11 +25,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { toast } from 'react-toastify'
+import ProtectedModule from '@/components/global/ProtectedModule'
 
 interface Module {
   _id: string
   pageId: string
-  type: "read" | "write" | "delete" | "update"
+  type: "read" | "create" | "delete" | "update"
 }
 
 interface PageData {
@@ -83,7 +84,7 @@ export default function Page() {
   const getModuleTypeLabel = (type: string) => {
     const labels: Record<string, string> = {
       read: "Lectura",
-      write: "Escritura",
+      create: "Escritura",
       update: "Actualización",
       delete: "Eliminación"
     }
@@ -150,23 +151,27 @@ export default function Page() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <EditPageModal 
-                page={page}
-                onSuccess={asyncLoad}
-                trigger={
-                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                    <Pencil className="mr-2 h-4 w-4" />
-                    Editar
-                  </DropdownMenuItem>
-                }
-              />
-              <DropdownMenuItem 
-                className="text-red-600"
-                onClick={() => handleDelete(page._id, page.name)}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Eliminar
-              </DropdownMenuItem>
+              <ProtectedModule page="Pages" type="read" method="hide">
+                <EditPageModal
+                  page={page}
+                  onSuccess={asyncLoad}
+                  trigger={
+                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                      <Pencil className="mr-2 h-4 w-4" />
+                      Editar
+                    </DropdownMenuItem>
+                  }
+                />
+              </ProtectedModule>
+              <ProtectedModule page="Pages" type="delete" method="hide">
+                <DropdownMenuItem
+                  className="text-red-600"
+                  onClick={() => handleDelete(page._id, page.name)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Eliminar
+                </DropdownMenuItem>
+              </ProtectedModule>
             </DropdownMenuContent>
           </DropdownMenu>
         )
@@ -201,7 +206,11 @@ export default function Page() {
         title="Páginas"
         description={`Administra las páginas y sus módulos del sistema. Total: ${pages.length}`}
         icon={<FileText className="h-5 w-5" />}
-        actions={<NewPageModal onSuccess={asyncLoad} />}
+        actions={
+          <ProtectedModule page="Pages" type="create" method="hide">
+            <NewPageModal onSuccess={asyncLoad} />
+          </ProtectedModule>
+        }
       />
 
       <div className="space-y-4">
@@ -229,9 +238,9 @@ export default function Page() {
                       {header.isPlaceholder
                         ? null
                         : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
                     </th>
                   ))}
                 </tr>

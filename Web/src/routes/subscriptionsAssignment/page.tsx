@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { API_ENDPOINTS } from '@/config/api'
 import { useAuthStore } from '@/store/authStore'
+import CashCutModal from '@/components/CashCut/CashCutModal'
 import {
   flexRender,
   getCoreRowModel,
@@ -28,6 +29,7 @@ import axios from 'axios'
 import { CalendarCheck2, MoreHorizontal, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'react-toastify'
+import ProtectedModule from '@/components/global/ProtectedModule'
 
 interface SubscriptionAssignmentData {
   _id: string
@@ -38,6 +40,7 @@ interface SubscriptionAssignmentData {
   startDate?: string
   endDate?: string
   pricePaid: number | { amount?: number }
+  paymentMethod: 'cash' | 'card' | 'transfer'
   status: 'active' | 'expired' | 'cancelled'
   createdAt?: string
   updatedAt?: string
@@ -78,6 +81,14 @@ const getStoreDisplay = (store: SubscriptionAssignmentData['storeId']) => {
   if (!store) return 'N/A'
   if (typeof store === 'string') return store
   return store.name || store._id || 'N/A'
+}
+
+const getPaymentMethodDisplay = (method: SubscriptionAssignmentData['paymentMethod']) => {
+  if (!method) return 'N/A'
+  if (method === 'cash') return 'Efectivo'
+  if (method === 'card') return 'Tarjeta'
+  if (method === 'transfer') return 'Transferencia'
+  return method || 'N/A'
 }
 
 export default function Page() {
@@ -172,6 +183,12 @@ export default function Page() {
       cell: ({ row }) => <div>{formatCurrency(resolvePrice(row.original.pricePaid))}</div>,
     },
     {
+      accessorKey: 'paymentMethod',
+      header: 'Método de Pago',
+      accessorFn: (row) => getPaymentMethodDisplay(row.paymentMethod),
+      cell: ({ row }) => <div>{getPaymentMethodDisplay(row.original.paymentMethod)}</div>,
+    },
+    {
       accessorKey: 'status',
       header: 'Estado',
       cell: ({ row }) => {
@@ -206,20 +223,27 @@ export default function Page() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Detalle</DropdownMenuLabel>
+
+              <DropdownMenuLabel>Detalles</DropdownMenuLabel>
+
+
               <DropdownMenuSeparator />
-              <DetailsSubscriptionsAssignment
+              <ProtectedModule page="SubscriptionsAssignments" type="update" method="hide">
+                <DetailsSubscriptionsAssignment
                 assignmentId={assignment._id}
                 onAssignmentUpdated={asyncLoad}
               />
+              </ProtectedModule>
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-red-600"
-                onClick={() => handleDeleteAssignment(assignment._id)}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Eliminar suscripción
-              </DropdownMenuItem>
+              <ProtectedModule page="SubscriptionsAssignments" type="delete" method="hide">
+                <DropdownMenuItem
+                  className="text-red-600"
+                  onClick={() => handleDeleteAssignment(assignment._id)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Eliminar suscripción
+                </DropdownMenuItem>
+              </ProtectedModule>
             </DropdownMenuContent>
           </DropdownMenu>
         )
@@ -258,7 +282,12 @@ export default function Page() {
 
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-2">
-          <NewSubscriptionsAssignment onAssignmentCreated={asyncLoad} />
+          <div className="flex items-center gap-2">
+            <CashCutModal />
+            <ProtectedModule page="SubscriptionsAssignments" type="create" method="hide">
+              <NewSubscriptionsAssignment onAssignmentCreated={asyncLoad} />
+            </ProtectedModule>
+          </div>
           <Input
             placeholder="Buscar asignaciones..."
             value={globalFilter ?? ''}

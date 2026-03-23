@@ -29,6 +29,7 @@ import { useAuthStore } from "@/store/authStore"
 import NewClientModal from '@/components/Clients/NewClientModal'
 import DetailsClientModal from '@/components/Clients/DetailsClientModal'
 import ViewClientDiets from '@/components/diets/ViewClientDiets'
+import ProtectedModule from '@/components/global/ProtectedModule'
 
 
 
@@ -146,16 +147,23 @@ export default function Page() {
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Acciones</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DetailsClientModal clientId={row.original._id} onClientUpdated={asyncLoad} />
-              <ViewClientDiets clientId={row.original._id} />
+              <ProtectedModule page="Clients" type="read" method="hide">
+                <DetailsClientModal clientId={row.original._id} onClientUpdated={asyncLoad} />
+              </ProtectedModule>
+
+              <ProtectedModule page="Clients" type="read" method="hide">
+                <ViewClientDiets clientId={row.original._id} />
+              </ProtectedModule>
               <DropdownMenuSeparator />
-              <div
-                className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 text-red-600 hover:bg-red-50"
-                onClick={() => handleDelete(row.original._id)}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Eliminar
-              </div>
+              <ProtectedModule page="Clients" type="delete" method="hide">
+                <div
+                  className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 text-red-600 hover:bg-red-50"
+                  onClick={() => handleDelete(row.original._id)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Eliminar
+                </div>
+              </ProtectedModule>
             </DropdownMenuContent>
           </DropdownMenu>
         )
@@ -195,7 +203,9 @@ export default function Page() {
       <div className="space-y-4">
         {/* Barra de búsqueda */}
         <div className="flex items-center justify-between gap-2">
-          <NewClientModal onSuccess={asyncLoad} />
+          <ProtectedModule page="Clients" type="create" method="hide">
+            <NewClientModal onSuccess={asyncLoad} />
+          </ProtectedModule>
           <Input
             placeholder="Buscar clientes..."
             value={globalFilter ?? ""}

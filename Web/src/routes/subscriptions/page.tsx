@@ -28,6 +28,7 @@ import axios from 'axios'
 import { CreditCard, MoreHorizontal, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'react-toastify'
+import ProtectedModule from '@/components/global/ProtectedModule'
 
 interface Duration {
   value: number
@@ -197,20 +198,24 @@ export default function Page() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Detalle</DropdownMenuLabel>
+              <DropdownMenuLabel>Detalles</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DetailsSubscriptionModal
-                subscriptionId={subscription._id}
-                onSubscriptionUpdated={asyncLoad}
-              />
+              <ProtectedModule page="Subscriptions" type="read" method="hide">
+                <DetailsSubscriptionModal
+                  subscriptionId={subscription._id}
+                  onSubscriptionUpdated={asyncLoad}
+                />
+              </ProtectedModule>
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-red-600"
-                onClick={() => handleDeleteSubscription(subscription._id)}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Eliminar suscripción
-              </DropdownMenuItem>
+         <ProtectedModule page="Subscriptions" type="delete" method="hide">
+               <DropdownMenuItem
+                 className="text-red-600"
+                 onClick={() => handleDeleteSubscription(subscription._id)}
+               >
+                 <Trash2 className="mr-2 h-4 w-4" />
+                 Eliminar suscripción
+               </DropdownMenuItem>
+         </ProtectedModule>
             </DropdownMenuContent>
           </DropdownMenu>
         )
@@ -249,7 +254,9 @@ export default function Page() {
 
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-2">
-          <NewSubscriptionModal onSubscriptionCreated={asyncLoad} />
+          <ProtectedModule page="Subscriptions" type="create" method="hide">
+            <NewSubscriptionModal onSubscriptionCreated={asyncLoad} />
+          </ProtectedModule>
           <Input
             placeholder="Buscar membresías..."
             value={globalFilter ?? ''}

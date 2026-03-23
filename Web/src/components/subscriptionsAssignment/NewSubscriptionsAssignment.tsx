@@ -16,6 +16,8 @@ import { useCallback, useEffect } from "react";
 import { Check, ChevronsUpDown } from "lucide-react"
 import { API_ENDPOINTS } from "@/config/api"
 import { useAuthStore } from "@/store/authStore"
+import { useBrandConfigStore } from "@/store/brandConfigStore"
+import { useCashCutStore } from "@/store/cashCutStore"
 import {
   Command,
   CommandEmpty,
@@ -34,6 +36,7 @@ type SubmitHandler = (
 interface BaseDocumentProps {
   onSubmit?: SubmitHandler;
   onAssignmentCreated?: () => void;
+  trigger?: React.ReactNode;
 }
 
 interface ClientData {
@@ -88,7 +91,7 @@ const formatCurrency = (price?: SubscriptionData['price']) => {
   }).format(amount)
 }
 
-export default function NewSubscriptionsAssignment({ onSubmit, onAssignmentCreated }: BaseDocumentProps) {
+export default function NewSubscriptionsAssignment({ onSubmit, onAssignmentCreated, trigger }: BaseDocumentProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false)
   const [loadingClients, setLoadingClients] = useState(false)
@@ -101,10 +104,26 @@ export default function NewSubscriptionsAssignment({ onSubmit, onAssignmentCreat
 
   const [clientId, setClientId] = useState("")
   const [planId, setPlanId] = useState("")
+  const [paymentMethod, setPaymentMethod] = useState("")
 
   const brandId = useAuthStore((state) => state.getBrandId())
   const activeStoreId = useAuthStore((state) => state.getActiveStoreId())
   const token = useAuthStore((state) => state.token)
+  const requireCashClosing = useBrandConfigStore((state) => state.config?.requireCashClosing ?? false)
+  const cashCutId = useCashCutStore((state) => state.cashCutId)
+
+  const canOpenAssignmentModal = useCallback(() => {
+    if (!requireCashClosing) {
+      return true
+    }
+
+    if (!cashCutId) {
+      toast.error("Debes abrir la caja antes de asignar una membresía")
+      return false
+    }
+
+    return true
+  }, [cashCutId, requireCashClosing])
 
   const loadSubscriptions = useCallback(async () => {
     if (!brandId) return;
@@ -197,6 +216,7 @@ export default function NewSubscriptionsAssignment({ onSubmit, onAssignmentCreat
   const resetForm = () => {
     setClientId("")
     setPlanId("")
+    setPaymentMethod("")
     setClientSearch("")
     setDebouncedClientSearch("")
     setSelectedClientLabel("")
@@ -216,8 +236,13 @@ export default function NewSubscriptionsAssignment({ onSubmit, onAssignmentCreat
       return
     }
 
-    if (!clientId || !planId) {
-      toast.error("Debes seleccionar cliente y membresía")
+    if (!clientId || !planId || !paymentMethod) {
+      toast.error("Debes seleccionar cliente, membresía y método de pago")
+      return
+    }
+
+    if (requireCashClosing && !cashCutId) {
+      toast.error("Debes abrir la caja antes de asignar una membresía")
       return
     }
 
@@ -229,10 +254,12 @@ export default function NewSubscriptionsAssignment({ onSubmit, onAssignmentCreat
           clientId,
           storeId: activeStoreId,
           planId,
+          paymentMethod,
         },
         {
           headers: {
             Authorization: token,
+            ...(cashCutId ? { "X-Cash-Cut-Id": cashCutId } : {}),
           },
         }
       )
@@ -263,9 +290,18 @@ export default function NewSubscriptionsAssignment({ onSubmit, onAssignmentCreat
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (nextOpen && !canOpenAssignmentModal()) {
+          return
+        }
+
+        setOpen(nextOpen)
+      }}
+    >
       <DialogTrigger asChild>
-        <Button variant="default">Asignar Membresía</Button>
+        {trigger ?? <Button variant="default">Asignar Membresía</Button>}
       </DialogTrigger>
 
       <DialogContent >
@@ -344,6 +380,22 @@ export default function NewSubscriptionsAssignment({ onSubmit, onAssignmentCreat
                   </Command>
                 </PopoverContent>
               </Popover>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="paymentMethod">Método de Pago *</Label>
+              <select
+                id="paymentMethod"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                disabled={loading}
+              >
+                <option value="">Selecciona método de pago</option>
+                <option value="cash">Efectivo</option>
+                <option value="card">Tarjeta</option>
+                <option value="transfer">Transferencia</option>
+              </select>
             </div>
 
             <div className="grid gap-2">

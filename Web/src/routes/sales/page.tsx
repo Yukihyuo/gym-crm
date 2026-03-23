@@ -22,6 +22,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { API_ENDPOINTS } from '@/config/api'
 import { useAuthStore } from '@/store/authStore'
+import ProtectedModule from '@/components/global/ProtectedModule'
+import CashCutModal from '@/components/CashCut/CashCutModal'
 
 interface Sale {
   _id: string
@@ -124,7 +126,12 @@ export default function SalesPage() {
         <div className="flex gap-2">
           {/* Aquí puedes agregar filtros más adelante */}
         </div>
-        <NewSaleModal onSuccess={asyncLoad} />
+        <div className="flex items-center gap-2">
+          <CashCutModal />
+          <ProtectedModule page="Sales" type="create" method="hide">
+            <NewSaleModal onSuccess={asyncLoad} />
+          </ProtectedModule>
+        </div>
       </div>
 
       <div className="border rounded-lg">
@@ -190,15 +197,17 @@ export default function SalesPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setSelectedSaleId(sale._id)
-                            setDetailsModalOpen(true)
-                          }}
-                        >
-                          <Eye className="mr-2 h-4 w-4" />
-                          Ver detalles
-                        </DropdownMenuItem>
+                        <ProtectedModule page="Sales" type="read" method="hide">
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSelectedSaleId(sale._id)
+                              setDetailsModalOpen(true)
+                            }}
+                          >
+                            <Eye className="mr-2 h-4 w-4" />
+                            Ver detalles
+                          </DropdownMenuItem>
+                        </ProtectedModule>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
