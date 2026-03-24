@@ -45,9 +45,10 @@ export const useCashCutStore = create<CashCutState>()(
 			clearCashCut: () => set({ cashCutId: null, loading: false, error: null }),
 
 			openCashCut: async (payload) => {
-				const { getUserId, getBrandId } = useAuthStore.getState()
+				const { getUserId, getBrandId, getActiveStoreId } = useAuthStore.getState()
 				const staffId = getUserId()
 				const brandId = getBrandId()
+				const storeId = getActiveStoreId()
 
 				if (!staffId) {
 					throw new Error('No se encontró staffId en sesión')
@@ -57,12 +58,17 @@ export const useCashCutStore = create<CashCutState>()(
 					throw new Error('No se encontró brandId en sesión')
 				}
 
+				if (!storeId) {
+					throw new Error('No se encontró storeId activo en sesión')
+				}
+
 				try {
 					set({ loading: true, error: null })
 
 					const response = await apiClient.post<CashCutApiResponse>(API_ENDPOINTS.CASH_CUTS.OPEN, {
 						staffId,
 						brandId,
+						storeId,
 						initialCash: payload?.initialCash ?? 0,
 					})
 

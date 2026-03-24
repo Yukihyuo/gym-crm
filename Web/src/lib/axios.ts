@@ -31,6 +31,7 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401) {
       useAuthStore.getState().clearAuth()
     }
+    console.log(error.response)
     return Promise.reject(error)
   }
 )

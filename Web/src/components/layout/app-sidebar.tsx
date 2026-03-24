@@ -9,6 +9,8 @@ import {
   User,
   CalendarDays,
   Users,
+  BoxSelect,
+  HandCoins,
 
 
 } from "lucide-react"
@@ -48,6 +50,8 @@ const routeAccessMap: Record<string, AccessRule> = {
   "/stores": { page: "Stores", type: "read" },
   "/subscriptions": { page: "Subscriptions", type: "read" },
   "/subscriptions-assignment": { page: "SubscriptionsAssignments", type: "read" },
+  "/cash-cuts": { page: "CashCuts", type: "read" },
+  "/expenses": { page: "Expenses", type: "read" },
   "/staff": { page: "Staff", type: "read" },
   "/clients": { page: "Clients", type: "read" },
   "/inventory": { page: "Inventory", type: "read" },
@@ -96,12 +100,21 @@ const data = {
       name: "Staff",
       url: "/staff",
       icon: User,
-    }, {
+    },
+    {
       name: "Clientes",
       url: "/clients",
       icon: Users,
     },
     {
+      name: "Cortes de caja",
+      url: "/cash-cuts",
+      icon: BoxSelect,
+    }, {
+      name: "Gastos",
+      url: "/expenses",
+      icon: HandCoins,
+    }, {
       name: "Inventario",
       url: "/inventory",
       icon: FileChartColumn,

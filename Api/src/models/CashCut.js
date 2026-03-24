@@ -7,6 +7,7 @@ const cashClosingSchema = new mongoose.Schema({
   },
   staffId: { type: String, required: true, ref: 'Staff' }, // Referencia a tu string _id del empleado
   brandId: { type: String, required: true, ref: 'Brand' }, // Referencia a tu string _id de la marca
+  storeId: { type: String, required: true, ref: 'Store' }, // Referencia a tu string _id de la sucursal
   openingDate: { type: Date, required: true },
   closingDate: { type: Date, default: Date.now },
 
@@ -45,6 +46,8 @@ const cashClosingSchema = new mongoose.Schema({
   
   salesIds: [{ type: String, ref: 'Sale' }], // Array de tus IDs (Strings) de ventas y suscripciones
   subscriptionAssignmentIds: [{ type: String, ref: 'SubscriptionAssignment' }], // Array de IDs de asignaciones de suscripciones
+  expensesIds: [{ type: String, ref: 'Expense' }], // Array de tus IDs (Strings) de gastos
+  
   notes: { type: String }
 }, { timestamps: true });
 

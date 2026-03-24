@@ -27,6 +27,14 @@ export const API_ENDPOINTS = {
     DELETE: (cashCutId: string) => `v1/cash-cuts/delete/${cashCutId}`
   },
 
+  EXPENSES: {
+    CREATE: `v1/expenses/create`,
+    GET_ALL: `v1/expenses/getAll`,
+    GET_BY_ID: (expenseId: string) => `v1/expenses/getById/${expenseId}`,
+    UPDATE: (expenseId: string) => `v1/expenses/update/${expenseId}`,
+    DELETE: (expenseId: string) => `v1/expenses/delete/${expenseId}`,
+  },
+
   STORES: {
     CREATE: `${API_URL}v1/stores/create`,
     GET_ALL: `${API_URL}v1/stores/getAll`,

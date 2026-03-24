@@ -37,11 +37,13 @@ const loadRoutes = async () => {
 
         if (routeConfig?.path && routeConfig?.router) {
           app.use(routeConfig.path, routeConfig.router);
-          console.log(`Ruta cargada: ${routeConfig.path}`);
+          console.log(`✅ Ruta cargada: ${routeConfig.path}`);
+        } else {
+          console.warn(`⚠️ ${file}: routeConfig no tiene path o router`);
         }
       } catch (error) {
-        console.log(error)
         console.error(`❌ Error cargando ${file}:`, error.message);
+        console.error(`   Stack:`, error.stack);
       }
     }
   }

@@ -16,6 +16,8 @@ import Staff from "./routes/staff/page";
 import Clients from "./routes/clients/page";
 import Subscriptions from "@/routes/subscriptions/page";
 import SubscriptionsAssignment from "@/routes/subscriptionsAssignment/page";
+import CashCuts from "@/routes/cashCuts/page";
+import Expenses from "@/routes/expenses/page";
 import { ThemeProvider } from "./components/global/theme-provider";
 
 const router = createBrowserRouter([
@@ -32,6 +34,18 @@ const router = createBrowserRouter([
         path: "/roles",
         element: <ProtectedModule page="Roles" type="read" method="block" >
           <Roles />
+        </ProtectedModule>,
+      },
+      {
+        path: "/cash-cuts",
+        element: <ProtectedModule page="CashCuts" type="read" method="block" >
+          <CashCuts />
+        </ProtectedModule>,
+      },
+      {
+        path: "/expenses",
+        element: <ProtectedModule page="Expenses" type="read" method="block" >
+          <Expenses />
         </ProtectedModule>,
       },
       {
