@@ -4,6 +4,7 @@ import { API_ENDPOINTS } from '@/config/api'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { TrendingUp, TrendingDown, ShoppingCart, Users, Package, Calendar, DollarSign, CreditCard } from 'lucide-react'
+import DownloadFinancialReport from '@/components/Dasboard/DownloadFinancialReport'
 
 interface DashboardSummary {
   currentMonth: {
@@ -150,7 +151,7 @@ export default function Page() {
         <h1 className="text-3xl font-bold">Dashboard</h1>
         <p className="text-muted-foreground">Resumen general del negocio</p>
       </div>
-
+    <DownloadFinancialReport/>
       {/* KPIs principales */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>

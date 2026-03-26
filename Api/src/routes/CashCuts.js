@@ -1,5 +1,8 @@
 import express from "express"
 import CashCut from "../models/CashCut.js"
+import Sale from "../models/Sale.js"
+import SubscriptionAssignment from "../models/SubscriptionAssignment.js"
+import Expense from "../models/Expense.js"
 
 const router = express.Router()
 
@@ -499,5 +502,94 @@ export const linkExpenseToCashCut = async (cashCutId, expenseId) => {
     return null;
   }
 };
+
+// PATCH - Recalcular todos los totales de un CashCut a partir de sus documentos vinculados
+// Util cuando se modifica una venta, suscripcion o gasto ya registrado en el corte
+router.patch('/recalculate/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+
+    const cashCut = await CashCut.findById(id)
+    if (!cashCut) {
+      return res.status(404).json({ message: 'Corte de caja no encontrado' })
+    }
+
+    // Obtener los documentos reales vinculados al corte
+    const [sales, subscriptions, expenses] = await Promise.all([
+      Sale.find({ _id: { $in: cashCut.salesIds } }).select('totals payment').lean(),
+      SubscriptionAssignment.find({ _id: { $in: cashCut.subscriptionAssignmentIds } }).select('pricePaid paymentMethod').lean(),
+      Expense.find({ _id: { $in: cashCut.expensesIds } }).select('amount source').lean(),
+    ])
+
+    // Recalcular byMethod desde cero sumando ventas + suscripciones
+    const byMethod = { cash: 0, transfer: 0, card: 0 }
+
+    for (const sale of sales) {
+      const method = sale?.payment?.method
+      const amount = Number(sale?.totals?.total || 0)
+      if (method && byMethod.hasOwnProperty(method)) {
+        byMethod[method] += amount
+      }
+    }
+
+    for (const sub of subscriptions) {
+      const method = sub?.paymentMethod
+      const amount = Number(sub?.pricePaid || 0)
+      if (method && byMethod.hasOwnProperty(method)) {
+        byMethod[method] += amount
+      }
+    }
+
+    // Recalcular byCategory desde cero
+    const byCategory = {
+      products: sales.reduce((acc, s) => acc + Number(s?.totals?.total || 0), 0),
+      subscriptions: subscriptions.reduce((acc, s) => acc + Number(s?.pricePaid || 0), 0),
+    }
+
+    // Separar gastos por origen
+    const cashExpenses = expenses
+      .filter(e => e.source === 'cash_drawer')
+      .reduce((acc, e) => acc + Number(e.amount || 0), 0)
+    const bankExpenses = expenses
+      .filter(e => e.source === 'bank_account')
+      .reduce((acc, e) => acc + Number(e.amount || 0), 0)
+    const totalExpenses = cashExpenses + bankExpenses
+
+    // grandTotal = ingresos brutos - gastos totales
+    const grandTotal = (byMethod.cash + byMethod.transfer + byMethod.card) - totalExpenses
+
+    const nextSystemTotals = { byMethod, byCategory, grandTotal }
+
+    // Recalcular la diferencia de caja usando los reportedTotals existentes
+    const cashDifference = calculateCashDifference(
+      cashCut.initialCash,
+      nextSystemTotals,
+      cashCut.reportedTotals,
+      cashExpenses,
+      bankExpenses
+    )
+
+    cashCut.systemTotals = nextSystemTotals
+    cashCut.cashDifference = cashDifference
+
+    // Si el corte ya estaba cerrado, recalcular su estado final
+    if (!isOpenCashCut(cashCut.status)) {
+      cashCut.status = resolveClosedStatus(cashDifference)
+    }
+
+    await cashCut.save()
+
+    return res.status(200).json({
+      message: 'Corte de caja recalculado exitosamente',
+      cashCut,
+    })
+  } catch (error) {
+    console.error('Error en recalculate cash cut:', error)
+    return res.status(500).json({
+      message: 'Error al recalcular el corte de caja',
+      error: error.message,
+    })
+  }
+})
 
 export const routeConfig = { path: "/v1/cash-cuts", router }
