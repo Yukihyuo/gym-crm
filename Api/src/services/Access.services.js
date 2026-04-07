@@ -6,9 +6,12 @@ import Subscription from "../models/Subscription.js"
 import dayjs from "dayjs"
 
 export const registerVisit = async (client, method) => {
+  const todayStart = dayjs().startOf('day').toDate()
+
   const sub = await SubscriptionAssignment.findOne({
     clientId: client._id,
-    endDate: { $gte: dayjs().startOf('day').toDate() },
+    startDate: { $lte: todayStart },
+    endDate: { $gte: todayStart },
     status: 'active'
   })
 

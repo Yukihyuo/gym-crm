@@ -9,8 +9,8 @@ import {
   User,
   CalendarDays,
   Users,
-  BoxSelect,
   HandCoins,
+  Wallet,
 
 
 } from "lucide-react"
@@ -109,7 +109,7 @@ const data = {
     {
       name: "Cortes de caja",
       url: "/cash-cuts",
-      icon: BoxSelect,
+      icon: Wallet,
     }, {
       name: "Gastos",
       url: "/expenses",

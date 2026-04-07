@@ -14,6 +14,12 @@ const calculateEndDate = (startDate, duration) => {
   const unit = duration?.unit || 'months'; // Day.js acepta 'days', 'weeks', 'months', 'years'
 
   if (value <= 0) return null;
+
+  // Regla de negocio: duración de 1 día termina el mismo día de inicio.
+  if (unit === 'days' && value === 1) {
+    return dayjs(startDate).endOf('day').toDate();
+  }
+
   return dayjs(startDate)
     .add(value, unit)
     .endOf('day')
@@ -26,72 +32,96 @@ router.post('/create', async (req, res) => {
     const { clientId, storeId, planId, paymentMethod } = req.body;
 
     if (!clientId || !storeId || !planId || !paymentMethod) {
-      return res.status(400).json({ message: 'clientId, storeId, planId y paymentMethod son requeridos' });
+      return res.status(400).json({
+        message: 'Faltan datos requeridos: clientId, storeId, planId, paymentMethod'
+      });
     }
 
-    const [client, store, subscription] = await Promise.all([
+    const [client, store, plan] = await Promise.all([
       Client.findById(clientId),
       Store.findById(storeId),
       Subscription.findById(planId)
     ]);
 
-    if (!client || !store || !subscription) {
-      return res.status(404).json({ message: 'Recurso no encontrado (Cliente/Tienda/Plan)' });
+    if (!client) {
+      return res.status(404).json({ message: 'Cliente no encontrado' });
     }
 
-    if (subscription.status !== 'active') {
-      return res.status(400).json({ message: 'Solo se pueden asignar membresías activas' });
+    if (!store) {
+      return res.status(404).json({ message: 'Tienda no encontrada' });
     }
 
-    if (client.brandId !== store.brandId || subscription.brandId !== store.brandId) {
-      return res.status(400).json({ message: 'Inconsistencia de marca (BrandId mismatch)' });
+    if (!plan) {
+      return res.status(404).json({ message: 'Membresía no encontrada' });
     }
 
-    const existingActiveAssignment = await SubscriptionAssignment.findOne({
+    if (client.brandId !== store.brandId || plan.brandId !== store.brandId) {
+      return res.status(400).json({
+        message: 'Cliente, tienda y membresía deben pertenecer a la misma marca'
+      });
+    }
+
+    const todayStart = dayjs().startOf('day').toDate();
+
+    // Si ya existe una suscripción activa para hoy o más adelante, encadenamos la nueva.
+    const latestActiveAssignment = await SubscriptionAssignment.findOne({
       clientId,
-      planId,
-      status: 'active'
-    });
+      status: 'active',
+      endDate: { $gte: todayStart }
+    }).sort({ endDate: -1, createdAt: -1 });
 
-    if (existingActiveAssignment) {
-      return res.status(400).json({ message: 'El cliente ya tiene esta membresía activa' });
+    const startDate = latestActiveAssignment?.endDate
+      ? dayjs(latestActiveAssignment.endDate).add(1, 'day').startOf('day').toDate()
+      : todayStart;
+
+    const endDate = calculateEndDate(startDate, plan.duration);
+
+    if (!endDate) {
+      return res.status(400).json({
+        message: 'La duración de la membresía es inválida'
+      });
     }
 
-    // NORMALIZACIÓN:
-    // Iniciamos al primer segundo de hoy y terminamos al último segundo del día de vencimiento
-    const assignmentStartDate = dayjs().startOf('day').toDate();
-    const assignmentEndDate = calculateEndDate(assignmentStartDate, subscription.duration);
-
-    const newAssignment = new SubscriptionAssignment({
+    const assignment = await SubscriptionAssignment.create({
       brandId: store.brandId,
       storeId,
       clientId,
       planId,
-      startDate: assignmentStartDate,
-      endDate: assignmentEndDate,
-      pricePaid: Number(subscription.price?.amount || 0),
-      paymentMethod
+      startDate,
+      endDate,
+      pricePaid: Number(plan.price?.amount || 0),
+      paymentMethod,
+      status: 'active'
     });
 
-    await newAssignment.save();
-
-    // Actualizar cash cut si existe el header X-Cash-Cut-Id
     const cashCutId = req.headers['x-cash-cut-id'];
     if (cashCutId) {
-      await updateCashCutWithDocument(cashCutId, 'subscription', newAssignment._id.toString(), {
-        paymentMethod: newAssignment.paymentMethod,
-        pricePaid: newAssignment.pricePaid
+      await updateCashCutWithDocument(cashCutId, 'subscription', assignment._id.toString(), {
+        paymentMethod: assignment.paymentMethod,
+        pricePaid: assignment.pricePaid
       });
     }
 
-    res.status(201).json({
-      message: 'Membresía asignada exitosamente',
-      assignment: newAssignment,
-    });
+    const populatedAssignment = await SubscriptionAssignment.findById(assignment._id)
+      .populate({ path: 'clientId', select: 'profile.names profile.lastNames email' })
+      .populate({ path: 'storeId', select: 'name' })
+      .populate({ path: 'planId', select: 'name status duration price' });
 
+    const isQueued = Boolean(latestActiveAssignment?.endDate);
+
+    res.status(201).json({
+      message: isQueued
+        ? 'Suscripción registrada exitosamente. Se activará al día siguiente de la suscripción vigente.'
+        : 'Suscripción asignada exitosamente',
+      assignment: populatedAssignment,
+      queued: isQueued
+    });
   } catch (error) {
     console.error('Error en create:', error);
-    res.status(500).json({ message: 'Error al asignar membresía', error: error.message });
+    res.status(500).json({
+      message: 'Error al crear asignación de suscripción',
+      error: error.message
+    });
   }
 });
 

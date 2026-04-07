@@ -1,5 +1,3 @@
-import { Dumbbell } from "lucide-react"
-
 import { LoginForm } from "@/components/login/login-form"
 
 export default function LoginPage() {
@@ -9,9 +7,9 @@ export default function LoginPage() {
         <div className="flex justify-center gap-2 md:justify-start">
           <a href="#" className="flex items-center gap-2 font-medium">
             <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
-              <Dumbbell className="size-4" />
+              <img src="/Logo.png" alt="Logo" className="h-6 w-6" />
             </div>
-            Gym Sync.
+            Nexay
           </a>
         </div>
         <div className="flex flex-1 items-center justify-center">
