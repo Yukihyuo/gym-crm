@@ -18,7 +18,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "nodemon --env-file=.env index.js",
     "dev": "nodemon index.js",
-    "seed": "node --env-file=.env src/utils/seeder.js"
+    "seed": "node --env-file=.env src/utils/seeder.js",
+    "fix:client-indexes": "node --env-file=.env src/utils/fixClientIndexes.js"
   },
   "dependencies": {
     "@react-email/components": "^1.0.9",
@@ -32,6 +33,7 @@
     "node-cron": "^4.2.1",
     "nodemailer": "^8.0.2",
     "nodemon": "^3.1.11",
-    "pdfkit": "^0.17.2"
+    "pdfkit": "^0.17.2",
+    "socket.io": "^4.8.3"
   }
 }

@@ -22,12 +22,17 @@ const clientSchema = new mongoose.Schema({
     unique: true,
     trim: true
   },
-  email: {
+  accessCode: {
     type: String,
     required: true,
-    unique: true,
     trim: true
   },
+  email: {
+    type: String,
+    required: false,
+    trim: true
+  },
+  fingerprintId: { type: String, default: null },
   password: {
     type: String,
     required: true
@@ -44,8 +49,6 @@ const clientSchema = new mongoose.Schema({
     phone: {
       type: String,
       required: false, // No es obligatorio
-      unique: true,    // Si existe, debe ser único
-      sparse: true,    // Permite múltiples registros con valor 'null' o 'undefined'
       trim: true
     }
   },
@@ -54,6 +57,23 @@ const clientSchema = new mongoose.Schema({
     default: true
   }
 }, { timestamps: true });
+
+clientSchema.index({ brandId: 1, accessCode: 1 }, { unique: true });
+clientSchema.index(
+  { brandId: 1, email: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { email: { $type: 'string', $gt: '' } }
+  }
+);
+clientSchema.index(
+  { brandId: 1, 'profile.phone': 1 },
+  {
+    unique: true,
+    partialFilterExpression: { 'profile.phone': { $type: 'string', $gt: '' } }
+  }
+);
+
 
 const Client = mongoose.model('Client', clientSchema);
 

@@ -96,18 +96,18 @@ export default function Page() {
       ),
     },
     {
-      accessorKey: "email",
-      header: "Email",
-      cell: ({ row }) => (
-        <div className="lowercase">{row.getValue("email")}</div>
-      ),
-    },
-    {
       id: "fullName",
       header: "Nombre Completo",
       accessorFn: (row) => `${row.profile.names} ${row.profile.lastNames}`,
       cell: ({ row }) => (
         <div>{row.original.profile.names} {row.original.profile.lastNames}</div>
+      ),
+    },
+    {
+      accessorKey: "email",
+      header: "Email",
+      cell: ({ row }) => (
+        <div className="lowercase">{row.getValue("email")}</div>
       ),
     },
     {

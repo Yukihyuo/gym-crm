@@ -72,6 +72,8 @@ export const findClientByIdentifier = async (identifier) => {
     $or: [
       { _id: value },
       { username: value },
+      { email: value.toLowerCase() },
+      { accessCode: value },
       { 'profile.phone': { $in: phoneCandidates } }
     ]
   }).lean()

@@ -1,6 +1,7 @@
 import { PageHeader } from '@/components/global/PageHeader'
 import { Button } from '@/components/ui/button'
 import CreateStoreModal from '@/components/stores/CreateStoreModal'
+import CreateTerminalModal from '@/components/stores/CreateTerminalModal'
 import DetailsStoreModal from '@/components/stores/DetailsStoreModal'
 import { API_ENDPOINTS } from '@/config/api'
 import axios from 'axios'
@@ -33,6 +34,7 @@ import apiClient from '@/lib/axios'
 
 interface Data {
   _id: string
+  name: string
 }
 
 export default function Page() {
@@ -113,6 +115,12 @@ export default function Page() {
               <DropdownMenuSeparator />
               <ProtectedModule page="Stores" type="read" method="hide">
                 <DetailsStoreModal storeId={store._id} onStoreUpdated={asyncLoad} />
+              </ProtectedModule>
+              <ProtectedModule page="Stores" type="create" method="hide">
+                <CreateTerminalModal
+                  storeName={store.name}
+                  onTerminalCreated={asyncLoad}
+                />
               </ProtectedModule>
               <DropdownMenuSeparator />
               <ProtectedModule page="Stores" type="delete" method="hide">

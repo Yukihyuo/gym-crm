@@ -50,6 +50,7 @@ const routeAccessMap: Record<string, AccessRule> = {
   "/stores": { page: "Stores", type: "read" },
   "/subscriptions": { page: "Subscriptions", type: "read" },
   "/subscriptions-assignment": { page: "SubscriptionsAssignments", type: "read" },
+  "/access": { page: "Clients", type: "read" },
   "/cash-cuts": { page: "CashCuts", type: "read" },
   "/expenses": { page: "Expenses", type: "read" },
   "/staff": { page: "Staff", type: "read" },
@@ -91,7 +92,11 @@ const data = {
         {
           title: "Tiendas",
           url: "/stores",
-        }
+        },
+        {
+          title: "Acceso de clientes",
+          url: "/access",
+        },
       ],
     },
   ],

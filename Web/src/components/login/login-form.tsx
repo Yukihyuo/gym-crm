@@ -19,7 +19,7 @@ interface LoginResponse {
   user: User
   access: Access
   modules?: Array<{
-    id: string
+    _id: string
     page: string
     type: string
   }>

@@ -44,6 +44,12 @@ export const API_ENDPOINTS = {
     DELETE: (storeId: string) => `${API_URL}v1/stores/delete/${storeId}`
   },
 
+  TERMINALS: {
+    CREATE: `${API_URL}v1/terminals/create`,
+    GET_ALL: `${API_URL}v1/terminals/getAll`,
+    DELETE: (terminalId: string) => `${API_URL}v1/terminals/delete/${terminalId}`
+  },
+
   // Pages endpoints
   PAGES: {
     CREATE: `${API_URL}v1/pages/create`,

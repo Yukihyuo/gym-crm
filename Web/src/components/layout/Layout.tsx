@@ -1,4 +1,5 @@
 import { AppSidebar } from "@/components/layout/app-sidebar"
+import { ActiveTerminalSelector } from "@/components/layout/ActiveTerminalSelector"
 import { useAuthStore } from "@/store/authStore"
 import { useBrandConfigStore } from "@/store/brandConfigStore"
 import {
@@ -62,6 +63,10 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
+          </div>
+          <div className="flex grow bg-amber-300"></div>
+          <div>
+            <ActiveTerminalSelector />
           </div>
         </header>
         <main className="p-2" >{children ?? <Outlet />}</main>

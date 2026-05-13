@@ -3,20 +3,35 @@ import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
+import http from "http"
+import { Server } from "socket.io"
 
 import "./src/config/db.config.js"
 import "./src/services/Cronjobs.services.js"
+import { initializeSocketListeners } from './src/utils/socket.utils.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
+
+global.io = io; // Hacer io accesible globalmente
+initializeSocketListeners(io);
+
+
 // Replicar __dirname en ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const routesPath = path.join(__dirname,'src', 'routes');
+const routesPath = path.join(__dirname, 'src', 'routes');
 
 app.use(cors({
-  origin:"*"
+  origin: "*"
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -56,6 +71,6 @@ app.get('/', (req, res) => {
   res.send('API is running');
 });
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });

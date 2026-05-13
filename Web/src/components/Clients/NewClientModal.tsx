@@ -24,9 +24,8 @@ const clientSchema = z.object({
     .min(3, "El usuario debe tener al menos 3 caracteres")
     .max(30, "El usuario no puede exceder 30 caracteres")
     .regex(/^[a-zA-Z0-9_]+$/, "El usuario solo puede contener letras, números y guiones bajos"),
-  email: z.string()
-    .min(1, "El email es requerido")
-    .email("Email inválido"),
+  email: z.union([z.string().email("Email inválido"), z.literal("")]),
+  accessCode: z.string().optional(),
   names: z.string()
     .min(1, "El nombre es requerido")
     .max(50, "El nombre no puede exceder 50 caracteres"),
@@ -62,6 +61,7 @@ export default function NewClientModal({ onSuccess, trigger }: NewClientModalPro
     defaultValues: {
       username: "",
       email: "",
+      accessCode: "",
       names: "",
       lastNames: "",
       phone: "",
@@ -78,17 +78,21 @@ export default function NewClientModal({ onSuccess, trigger }: NewClientModalPro
     try {
       const response = await axios.post(API_ENDPOINTS.CLIENTS.REGISTER, {
         username: data.username,
-        email: data.email,
+        email: data.email.trim() || undefined,
+        accessCode: data.accessCode?.trim() || undefined,
         storeId: activeStoreId,
         profile: {
           names: data.names,
           lastNames: data.lastNames,
-          phone: data.phone || "",
+          phone: data.phone?.trim() || undefined,
         },
       })
 
       toast.success(response.data.message || "Cliente creado exitosamente")
-      toast.info(`Usuario: ${data.username} | Contraseña: ${data.username}`, { autoClose: 10000 })
+      toast.info(
+        `Usuario: ${response.data?.credentials?.username || data.username} | Contraseña: ${response.data?.credentials?.defaultPassword || data.username}`,
+        { autoClose: 10000 }
+      )
 
       reset()
       setOpen(false)
@@ -125,7 +129,7 @@ export default function NewClientModal({ onSuccess, trigger }: NewClientModalPro
         <DialogHeader>
           <DialogTitle>Crear Nuevo Cliente</DialogTitle>
           <DialogDescription>
-            Completa los datos para registrar un nuevo cliente. Debes ingresar el username manualmente.
+            Completa los datos para registrar un nuevo cliente.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)}>
@@ -148,9 +152,9 @@ export default function NewClientModal({ onSuccess, trigger }: NewClientModalPro
               </p>
             </div>
 
-            <div className="grid gap-2">
+            {/* <div className="grid gap-2">
               <Label htmlFor="email">
-                Email <span className="text-red-500">*</span>
+                Email (opcional)
               </Label>
               <Input
                 id="email"
@@ -162,6 +166,16 @@ export default function NewClientModal({ onSuccess, trigger }: NewClientModalPro
               {errors.email && (
                 <p className="text-sm text-red-500">{errors.email.message}</p>
               )}
+            </div> */}
+
+            <div className="grid gap-2">
+              <Label htmlFor="accessCode">Código de acceso (opcional)</Label>
+              <Input
+                id="accessCode"
+                placeholder="ABC123"
+                {...register("accessCode")}
+                disabled={isLoading}
+              />
             </div>
 
             <div className="grid gap-2">
@@ -207,11 +221,11 @@ export default function NewClientModal({ onSuccess, trigger }: NewClientModalPro
               )}
             </div>
 
-            <div className="bg-muted/50 rounded-md p-3">
+            {/* <div className="bg-muted/50 rounded-md p-3">
               <p className="text-xs text-muted-foreground">
-                <strong>Nota:</strong> La contraseña inicial será igual al username ingresado. El cliente deberá cambiarla en el primer inicio de sesión.
+                <strong>Nota:</strong> Si no se llena email y sí accessCode, la contraseña inicial será el accessCode. Si tampoco se llena accessCode, el backend genera una contraseña aleatoria.
               </p>
-            </div>
+            </div> */}
           </div>
 
           <DialogFooter>

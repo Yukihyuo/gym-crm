@@ -1,6 +1,7 @@
 import express from "express"
 import bcrypt from "bcrypt"
 import jwt from "jsonwebtoken"
+import crypto from "crypto"
 import Client from "../models/Client.js"
 import Store from "../models/Store.js"
 import Visit from "../models/Visit.js"
@@ -11,6 +12,8 @@ import { findClientByIdentifier, registerVisit } from "../services/Access.servic
 
 
 const router = express.Router()
+
+const generateRandomValue = (size = 6) => crypto.randomBytes(size).toString("hex")
 
 router.get('/sendMail', async (req, res) => {
   try {
@@ -70,12 +73,22 @@ router.get('/searchSelect/:search', async (req, res) => {
 // Create - Crear nuevo cliente
 router.post('/create', async (req, res) => {
   try {
-    const { email, storeId, profile, username: requestedUsername } = req.body;
+    const {
+      email,
+      accessCode: requestedAccessCode,
+      storeId,
+      profile,
+      username: requestedUsername
+    } = req.body;
+
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : ''
+    const normalizedAccessCode = typeof requestedAccessCode === 'string' ? requestedAccessCode.trim() : ''
+    const normalizedPhone = typeof profile?.phone === 'string' ? profile.phone.trim() : ''
 
     // Validar campos requeridos
-    if (!email || !storeId || !profile?.names || !profile?.lastNames) {
+    if (!storeId || !profile?.names || !profile?.lastNames) {
       return res.status(400).json({
-        message: 'Email, ID de tienda, nombres y apellidos son requeridos'
+        message: 'ID de tienda, nombres y apellidos son requeridos'
       });
     }
 
@@ -88,23 +101,25 @@ router.post('/create', async (req, res) => {
       });
     }
 
-    // Verificar si el cliente ya existe
-    const existingClient = await Client.findOne({ email });
+    if (normalizedEmail) {
+      // Verificar si el cliente ya existe por email
+      const existingClient = await Client.findOne({ email: normalizedEmail });
 
-    if (existingClient) {
-      return res.status(400).json({
-        message: 'El email ya está registrado'
-      });
+      if (existingClient) {
+        return res.status(400).json({
+          message: 'El email ya está registrado'
+        });
+      }
     }
 
     // Permitir username manual; si no se envía, se deriva del email
     const username = typeof requestedUsername === 'string' && requestedUsername.trim()
       ? requestedUsername.trim()
-      : email.split('@')[0];
+      : normalizedEmail ? normalizedEmail.split('@')[0] : '';
 
     if (!username) {
       return res.status(400).json({
-        message: 'Username inválido'
+        message: 'Username inválido. Si no envías username, debes enviar un email válido.'
       });
     }
 
@@ -117,20 +132,52 @@ router.post('/create', async (req, res) => {
       });
     }
 
-    // Generar contraseña hasheada usando el username
-    const hashedPassword = await bcrypt.hash(username, 10);
+    let accessCode = normalizedAccessCode
+    if (!accessCode) {
+      let generatedCode = ''
+      let collision = true
+
+      while (collision) {
+        generatedCode = generateRandomValue(4)
+        // accessCode es único por marca
+        const existingCode = await Client.findOne({ brandId: store.brandId, accessCode: generatedCode })
+        collision = Boolean(existingCode)
+      }
+
+      accessCode = generatedCode
+    } else {
+      const existingCode = await Client.findOne({ brandId: store.brandId, accessCode })
+      if (existingCode) {
+        return res.status(400).json({
+          message: 'El accessCode ya existe en esta marca. Use uno diferente.'
+        })
+      }
+    }
+
+    let defaultPassword = username
+    if (!normalizedEmail && normalizedAccessCode) {
+      defaultPassword = normalizedAccessCode
+    }
+
+    if (!normalizedEmail && !normalizedAccessCode) {
+      defaultPassword = generateRandomValue(6)
+    }
+
+    // Generar contraseña hasheada de acuerdo a la regla de creación
+    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
 
     // Crear el nuevo cliente
     const newClient = new Client({
       brandId: store.brandId,
       storeId,
       username,
-      email,
+      accessCode,
+      email: normalizedEmail || undefined,
       password: hashedPassword,
       profile: {
         names: profile.names,
         lastNames: profile.lastNames,
-        phone: profile.phone || ''
+        phone: normalizedPhone || undefined
       }
     });
 
@@ -139,7 +186,7 @@ router.post('/create', async (req, res) => {
     let welcomeEmailSent = false;
     try {
       const brand = await Brand.findById(store.brandId);
-      if (brand) {
+      if (brand && normalizedEmail) {
         await sendWelcomeEmail(newClient, brand);
         welcomeEmailSent = true;
       }
@@ -154,11 +201,12 @@ router.post('/create', async (req, res) => {
         id: newClient._id,
         username: newClient.username,
         email: newClient.email,
+        accessCode: newClient.accessCode,
         profile: newClient.profile
       },
       credentials: {
         username: username,
-        defaultPassword: username,
+        defaultPassword,
         message: 'El cliente debe cambiar su contraseña en el primer login'
       }
     });
