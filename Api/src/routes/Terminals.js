@@ -55,7 +55,8 @@ router.get('/download-biometric', (req, res) => {
 });
 router.get('/actual-version', (req, res) => {
   try {
-    res.status(200).json({ latest_version: '1.0.5', download_url: 'https://api.nexay.fit//v1/terminals/download-biometric' });
+    const downloadUrl = "https://ezncttaaxszwpuvebaot.supabase.co/storage/v1/object/public/Gym-CRM/biometrico.exe"
+    res.status(200).json({ latest_version: '1.0.5', download_url: downloadUrl });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
