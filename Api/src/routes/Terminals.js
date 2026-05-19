@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import Terminal from '../models/Terminal.js';
 import PendingData from '../models/PendingData.js';
+import fs from 'fs';
 
 async function generateUniqueCode() {
   let code;
