@@ -5,6 +5,18 @@ import SubscriptionAssignment from "../models/SubscriptionAssignment.js"
 import Subscription from "../models/Subscription.js"
 import dayjs from "dayjs"
 
+const buildAccessResult = ({ kind, title, message, client = null, membership = null, daysPending = null, details = [] }) => {
+  return {
+    kind,
+    title,
+    message,
+    client,
+    membership,
+    daysPending,
+    details,
+  }
+}
+
 export const registerVisit = async (client, method) => {
   const todayStart = dayjs().startOf('day').toDate()
 
@@ -20,9 +32,14 @@ export const registerVisit = async (client, method) => {
     return {
       ok: false,
       status: 403,
-      payload: {
-        message: 'El cliente no tiene una suscripción activa'
-      }
+      payload: buildAccessResult({
+        kind: 'error',
+        title: 'Acceso denegado',
+        message: 'El cliente no tiene una suscripción activa',
+        details: [
+          { label: 'Motivo', value: 'Suscripción inactiva' },
+        ],
+      })
     }
   }
 
@@ -41,13 +58,19 @@ export const registerVisit = async (client, method) => {
   return {
     ok: true,
     status: 200,
-    payload: {
-      message: 'Acceso concedido',
+    payload: buildAccessResult({
+      kind: 'success',
+      title: 'Acceso concedido',
+      message: 'Se registró el acceso correctamente para el cliente.',
       client: `${client.profile.names} ${client.profile.lastNames}`,
       membership: membership || null,
       daysPending: dayjs(sub.endDate).diff(dayjs(), 'day'),
-      success: true,
-    }
+      details: [
+        { label: 'Cliente', value: `${client.profile.names} ${client.profile.lastNames}` },
+        { label: 'Plan', value: membership?.name ?? 'No disponible' },
+        { label: 'Vigencia', value: `${dayjs(sub.endDate).diff(dayjs(), 'day')} días` },
+      ],
+    })
   }
 }
 

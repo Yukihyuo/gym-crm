@@ -9,6 +9,7 @@ import Brand from "../models/Brand.js"
 import SubscriptionAssignment from "../models/SubscriptionAssignment.js"
 import { sendWelcomeEmail } from "../emails/email.handler.js"
 import { findClientByIdentifier, registerVisit } from "../services/Access.services.js"
+import Terminal from "../models/Terminal.js"
 
 
 const router = express.Router()
@@ -659,6 +660,51 @@ router.post('/login-qr-contact', async (req, res) => {
   }
 })
 
+router.get('/get-finger-prints/:terminalId', async (req, res) => {
+  const { terminalId } = req.params
+  try {
+    const terminal = await Terminal.findById(terminalId)
+    if (!terminal) {
+      return res.status(404).json({
+        message: 'Terminal no encontrada'
+      })
+    }
 
+    const store = await Store.findById(terminal.storeId)
+    if (!store) {
+      return res.status(404).json({
+        message: 'Tienda no encontrada'
+      })
+    }
+
+    const clients = await Client.find({ brandId: store.brandId, fingerprint: { $ne: null } })
+
+    if (!clients || clients.length === 0) {
+      return res.status(404).json({
+        message: 'Clientes con huella registrada no encontrados'
+      })
+    }
+
+    const clientsMap = clients.map(client => (
+      {
+        key: client._id,
+        value: client.fingerprint
+      }
+    ))
+
+    res.status(200).json({
+      message: 'Clientes con huella registrada obtenidos exitosamente',
+      count: clientsMap.length,
+      clients: clientsMap
+    })
+
+  }catch (error) {
+    console.error('Error en getByFingerprint:', error)
+    res.status(500).json({
+      message: 'Error al obtener cliente por huella',
+      error: error.message
+    })
+  }
+})
 
 export const routeConfig = { path: "/v1/clients", router }

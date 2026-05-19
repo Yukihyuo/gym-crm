@@ -9,11 +9,11 @@ const terminalSchema = new mongoose.Schema({
   storeId: { type: String, ref: 'Store', required: true },
   name: { type: String, default: 'Punto de Acceso' },
 
-  deviceId: {
-    type: String,
-    ref: 'HardwareModel',
-    required: false
-  },
+  // deviceId: {
+  //   type: String,
+  //   ref: 'HardwareModel',
+  //   required: false
+  // },
 
   isLinked: { type: Boolean, default: false },
   lastSeen: { type: Date, default: Date.now }

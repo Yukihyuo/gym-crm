@@ -28,6 +28,7 @@ import {
 import { useAuthStore } from "@/store/authStore"
 import NewClientModal from '@/components/Clients/NewClientModal'
 import DetailsClientModal from '@/components/Clients/DetailsClientModal'
+import RegisterFingerprintModal from '@/components/Clients/RegisterFingerprintModal'
 import ViewClientDiets from '@/components/diets/ViewClientDiets'
 import ProtectedModule from '@/components/global/ProtectedModule'
 
@@ -44,6 +45,7 @@ interface UserData {
   username: string
   email: string
   profile: Profile
+  fingerprint: string | null
   status: boolean
   createdAt?: string
 }
@@ -154,6 +156,17 @@ export default function Page() {
               <ProtectedModule page="Clients" type="read" method="hide">
                 <ViewClientDiets clientId={row.original._id} />
               </ProtectedModule>
+              {
+                row.original.fingerprint ? (null) : (
+                  <ProtectedModule page="Clients" type="read" method="hide">
+                    <RegisterFingerprintModal
+                      clientId={row.original._id}
+                      onRegistered={asyncLoad}
+                    />
+                  </ProtectedModule>
+                )
+              }
+
               <DropdownMenuSeparator />
               <ProtectedModule page="Clients" type="delete" method="hide">
                 <div

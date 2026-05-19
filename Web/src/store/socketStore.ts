@@ -10,6 +10,9 @@ interface SocketState {
   // Acciones
   connect: () => void;
   disconnect: () => void;
+  emitEvent: (event: string, data?: unknown) => void;
+  onEvent: (event: string, callback: () => void) => () => void;
+  onEventWithData: <T = unknown>(event: string, callback: (data: T) => void) => () => void;
   
   // Helpers específicos para el sistema de huellas
   joinTerminal: (terminalUuid: string) => void;
@@ -70,6 +73,48 @@ export const useSocketStore = create<SocketState>((set, get) => ({
       socket.disconnect();
       set({ socket: null, isConnected: false });
     }
+  },
+
+  emitEvent: (event: string, data?: unknown) => {
+    const { socket } = get();
+    if (!socket || !event) {
+      return;
+    }
+
+    if (typeof data === 'undefined') {
+      socket.emit(event);
+      return;
+    }
+
+    socket.emit(event, data);
+  },
+
+  onEvent: (event: string, callback: () => void) => {
+    const { socket } = get();
+    if (!socket || !event || typeof callback !== 'function') {
+      return () => {};
+    }
+
+    socket.on(event, callback);
+
+    // Devolvemos cleanup para poder desuscribir fácilmente.
+    return () => {
+      socket.off(event, callback);
+    };
+  },
+
+  onEventWithData: <T = unknown>(event: string, callback: (data: T) => void) => {
+    const { socket } = get();
+    if (!socket || !event || typeof callback !== 'function') {
+      return () => {};
+    }
+
+    socket.on(event, callback as (...args: unknown[]) => void);
+
+    // Devolvemos cleanup para poder desuscribir fácilmente.
+    return () => {
+      socket.off(event, callback as (...args: unknown[]) => void);
+    };
   },
 
   joinTerminal: (terminalUuid: string) => {

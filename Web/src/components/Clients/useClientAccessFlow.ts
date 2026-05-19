@@ -1,27 +1,10 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react"
 import { Html5Qrcode, Html5QrcodeScannerState } from "html5-qrcode"
 import axios from "axios"
-
-type MembershipInfo = {
-  name?: string
-  description?: string
-  duration?: {
-    value?: number
-    unit?: "days" | "weeks" | "months" | "years" | string
-  }
-  price?: {
-    amount?: number
-    currency?: string
-  }
-}
-
-export type QrLoginResponse = {
-  success?: boolean
-  message: string
-  client?: string
-  membership?: MembershipInfo | null
-  daysPending?: number
-}
+import {
+  normalizeAccessResult,
+  type AccessResultPayload,
+} from "./accessResult"
 
 type Mode = "qr" | "manual"
 
@@ -40,7 +23,7 @@ export function useClientAccessFlow({ enabled }: UseClientAccessFlowOptions) {
   const [scanStatus, setScanStatus] = useState<string>("Inicializando cámara...")
   const [scanError, setScanError] = useState<string>("")
   const [accessGranted, setAccessGranted] = useState(false)
-  const [accessData, setAccessData] = useState<QrLoginResponse | null>(null)
+  const [accessData, setAccessData] = useState<AccessResultPayload | null>(null)
   const scannerRef = useRef<Html5Qrcode | null>(null)
   const readerId = useId().replace(/:/g, "")
   const scannerElementId = `reader-${readerId}`
@@ -87,18 +70,19 @@ export function useClientAccessFlow({ enabled }: UseClientAccessFlowOptions) {
     setManualLoading(false)
   }, [])
 
-  const manageResponse = useCallback((data: QrLoginResponse) => {
-    console.log("Request exitoso:", data)
+  const manageResponse = useCallback((data: unknown) => {
+    const normalized = normalizeAccessResult(data)
+    console.log("Request normalizado:", normalized)
 
-    if (!data.success) {
-      setScanError(data.message ?? "No se pudo registrar el acceso")
+    if (normalized.kind === "error") {
+      setScanError(normalized.message ?? "No se pudo registrar el acceso")
       setScanStatus("")
       return
     }
 
     setAccessGranted(true)
-    setAccessData(data)
-    setScanStatus(data.message)
+    setAccessData(normalized)
+    setScanStatus(normalized.message)
     setScanError("")
 
     const scannerInstance = scannerRef.current
@@ -121,7 +105,7 @@ export function useClientAccessFlow({ enabled }: UseClientAccessFlowOptions) {
     const body = isEmail ? { email: value } : { phone: value }
 
     try {
-      const response = await axios.post<QrLoginResponse>(contactApiUrl, body)
+      const response = await axios.post<unknown>(contactApiUrl, body)
       manageResponse(response.data)
     } catch (error: unknown) {
       if (axios.isAxiosError(error) && error.response) {
@@ -168,7 +152,7 @@ export function useClientAccessFlow({ enabled }: UseClientAccessFlowOptions) {
 
     const loginWithQR = async (decodedText: string) => {
       try {
-        const response = await axios.post<QrLoginResponse>(apiUrl, { qrData: decodedText })
+        const response = await axios.post<unknown>(apiUrl, { qrData: decodedText })
         if (!mounted) {
           return
         }

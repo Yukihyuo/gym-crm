@@ -32,7 +32,7 @@ const clientSchema = new mongoose.Schema({
     required: false,
     trim: true
   },
-  fingerprintId: { type: String, default: null },
+  fingerprint: { type: String, default: null },
   password: {
     type: String,
     required: true

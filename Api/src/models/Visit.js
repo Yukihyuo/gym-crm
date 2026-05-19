@@ -20,7 +20,7 @@ const visitSchema = new mongoose.Schema({
     required: true,
     ref: 'Client'
   },
-  accessMethod: { type: String, enum: ['qr', 'manual', 'biometric'], default: 'qr' },
+  accessMethod: { type: String, enum: ['qr', 'manual', 'fingerprint'], default: 'qr' },
   isTrial: { type: Boolean, default: false },
   
 

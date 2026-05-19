@@ -1,5 +1,7 @@
 import express from 'express';
 import { randomUUID } from 'crypto';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import Terminal from '../models/Terminal.js';
 import PendingData from '../models/PendingData.js';
 
@@ -15,7 +17,35 @@ async function generateUniqueCode() {
   return code;
 }
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const router = express.Router();
+
+// Endpoint de descarga del archivo biométrico
+router.get('/download-biometric', (req, res) => {
+  try {
+    const filePath = path.join(__dirname, '../dist/biometrico.exe');
+    console.log("petición")
+    res.download(filePath, 'biometrico.exe', (err) => {
+      if (err) {
+        console.error('Error descargando archivo:', err);
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'No se pudo descargar el archivo' });
+        }
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/actual-version', (req, res) => {
+  try {
+    res.status(200).json({ latest_version: '1.0.5', download_url: 'https://api.nexay.fit//v1/terminals/download-biometric' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+})
 
 // Crear terminal
 router.post('/create', async (req, res) => {
@@ -64,19 +94,24 @@ router.post('/create', async (req, res) => {
 });
 
 // Obtener terminales
-router.get('/getAll', async (req, res) => {
+router.get('/getAll/:storeId', async (req, res) => {
   try {
-    const storeId = req.query.storeId || req.headers['x-store-id'];
+    const storeId = req.params.storeId;
     const query = storeId ? { storeId } : {};
 
     const terminals = await Terminal.find(query)
-      .populate('deviceId')
+      // .populate('deviceId')
       .sort({ createdAt: -1 });
 
+    const terminalsMap = terminals.map(terminal => ({
+      _id: terminal._id,
+      name: terminal.name,
+      isLinked: terminal.isLinked,
+    }))
     res.status(200).json({
       message: 'Terminales obtenidas exitosamente',
       count: terminals.length,
-      terminals
+      terminals: terminalsMap
     });
   } catch (error) {
     res.status(500).json({
@@ -126,33 +161,62 @@ router.get('/config/:uuid', async (req, res) => {
 
 // 2. Vincular terminal con UUID (Desde la ventanita de Python)
 router.post('/vincular', async (req, res) => {
-  const { uuid, terminalId } = req.body;
+  const { uuid, type, pin } = req.body;
 
-  if (!uuid || !terminalId) {
-    return res.status(400).json({ message: 'uuid y terminalId son requeridos' });
+  if (!uuid || !type || !pin) {
+    return res.status(400).json({ message: 'uuid, type y pin son requeridos' });
   }
 
-  const terminal = await Terminal.findOne({ _id: terminalId });
+  const pending = await PendingData.findOne({ value: pin, type });
+
+  if (!pending) {
+    return res.status(400).json({ message: 'Código PIN inválido o expirado' });
+  }
+
+  const terminal = await Terminal.findOne({ _id: pending.sourceId });
 
   if (!terminal) {
     return res.status(404).json({ message: 'Terminal no encontrada' });
   }
-
   if (terminal.isLinked) {
     return res.status(400).json({ message: 'La terminal ya está vinculada' });
   }
 
+
   const existingUuid = await Terminal.findOne({ uuid });
-  if (existingUuid && existingUuid._id !== terminalId) {
+  if (existingUuid && existingUuid._id.toString() !== terminal._id.toString()) {
     return res.status(400).json({ message: 'El UUID ya está en uso por otra terminal' });
   }
 
   terminal.uuid = uuid;
   terminal.isLinked = true;
   await terminal.save();
+  await pending.deleteOne();
 
-  res.json({ message: "Vinculación exitosa" });
+  res.json({ message: "Vinculación exitosa", terminal });
 });
 
+
+router.get('/check/:uuid', async (req, res) => {
+  try {
+    const terminal = await Terminal.findOne({ uuid: req.params.uuid });
+
+    if (!terminal) {
+      return res.status(200).json({ status: false });
+    }
+    res.status(200).json({ status: true, terminal });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
+router.post('/save_finger_print', async (req, res) => {
+  const { terminal_id, finger_print } = req.body;
+
+  console.log(finger_print)
+
+  res.status(200).json({ message: 'Huella dactilar recibida', terminal_id, finger_print });
+})
 
 export const routeConfig = { path: "/v1/terminals", router }

@@ -1,56 +1,11 @@
 import { useEffect, useRef } from "react"
-import { useClientAccessFlow } from "@/components/Clients/useClientAccessFlow"
+import { AccessResultDialog } from "../../components/Clients/AccessResultDialog"
+import { useClientAccessFlow } from "../../components/Clients/useClientAccessFlow"
 import { PageHeader } from "@/components/global/PageHeader"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Separator } from "@/components/ui/separator"
-import { CheckCircle2, Keyboard, QrCode, ShieldCheck } from "lucide-react"
-
-type MembershipInfo = NonNullable<NonNullable<ReturnType<typeof useClientAccessFlow>["accessData"]>["membership"]>
-
-const formatDuration = (membership?: MembershipInfo | null) => {
-  const value = membership?.duration?.value
-  const unit = membership?.duration?.unit
-
-  if (!value || !unit) {
-    return "No disponible"
-  }
-
-  const labels: Record<string, { singular: string, plural: string }> = {
-    days: { singular: "día", plural: "días" },
-    weeks: { singular: "semana", plural: "semanas" },
-    months: { singular: "mes", plural: "meses" },
-    years: { singular: "año", plural: "años" },
-  }
-
-  const unitLabel = labels[unit] ?? { singular: unit, plural: unit }
-  return `${value} ${value === 1 ? unitLabel.singular : unitLabel.plural}`
-}
-
-const formatDaysPending = (daysPending?: number) => {
-  if (typeof daysPending !== "number") {
-    return "No disponible"
-  }
-
-  if (daysPending <= 0) {
-    return "Vence hoy"
-  }
-
-  if (daysPending === 1) {
-    return "1 día restante"
-  }
-
-  return `${daysPending} días restantes`
-}
+import { Keyboard, QrCode, ShieldCheck } from "lucide-react"
 
 export default function Page() {
   const flow = useClientAccessFlow({ enabled: true })
@@ -211,81 +166,11 @@ export default function Page() {
         </div>
       </div>
 
-      <Dialog open={accessGranted} onOpenChange={(nextOpen) => !nextOpen && closeResponseModal()}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Resultado del acceso</DialogTitle>
-            <DialogDescription>
-              Este mensaje se cierra automáticamente en 5 segundos.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="mt-2 rounded-md border border-green-300 bg-green-50 p-6">
-            <div className="flex flex-col items-center text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-green-700">
-                <CheckCircle2 className="h-7 w-7" />
-              </div>
-
-              <div className="mt-4">
-                <h3 className="text-lg font-semibold text-green-900">
-                  {flow.accessData?.message ?? "Acceso concedido"}
-                </h3>
-                <p className="mt-2 text-sm text-green-800">
-                  Se registró el acceso correctamente para el cliente.
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-6 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-md border border-green-200 bg-white/80 p-3">
-                <p className="text-xs font-medium uppercase tracking-wide text-green-700">Cliente</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">
-                  {flow.accessData?.client ?? "No disponible"}
-                </p>
-              </div>
-
-              <div className="rounded-md border border-green-200 bg-white/80 p-3">
-                <p className="text-xs font-medium uppercase tracking-wide text-green-700">Plan</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">
-                  {flow.accessData?.membership?.name ?? "No disponible"}
-                </p>
-              </div>
-
-              <div className="rounded-md border border-green-200 bg-white/80 p-3">
-                <p className="text-xs font-medium uppercase tracking-wide text-green-700">Duración</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">
-                  {formatDuration(flow.accessData?.membership)}
-                </p>
-              </div>
-
-              <div className="rounded-md border border-green-200 bg-white/80 p-3">
-                <p className="text-xs font-medium uppercase tracking-wide text-green-700">Vigencia</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">
-                  {formatDaysPending(flow.accessData?.daysPending)}
-                </p>
-              </div>
-            </div>
-
-            {flow.accessData?.membership?.description ? (
-              <>
-                <Separator className="my-4 bg-green-200" />
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-green-700">Descripción del plan</p>
-                  <p className="mt-2 text-sm text-slate-700">
-                    {flow.accessData.membership.description}
-                  </p>
-                </div>
-              </>
-            ) : null}
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={closeResponseModal}>
-              Cerrar ahora
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AccessResultDialog
+        open={accessGranted}
+        data={flow.accessData}
+        onClose={closeResponseModal}
+      />
     </div>
   )
 }

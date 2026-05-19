@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
 
 interface TerminalState {
   terminalId: string | null;
@@ -14,6 +14,10 @@ export const useTerminalStore = create<TerminalState>()(
       setTerminal: (terminalId: string) => set({ terminalId }),
       clearTerminal: () => set({ terminalId: null }),
     }),
-    { name: 'config-terminal-gym' } // Nombre en LocalStorage
+    {
+      name: 'config-terminal-gym',
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({ terminalId: state.terminalId }),
+    }
   )
 );
