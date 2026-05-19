@@ -21,28 +21,37 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const router = express.Router();
 
-// Endpoint de descarga del archivo biométrico
 router.get('/download-biometric', (req, res) => {
   try {
     const filePath = path.join(__dirname, '../dist/biometrico.exe');
-    console.log("petición")
+    console.log("Petición recibida para la ruta:", filePath);
+
+    // VALIDACIÓN CRÍTICA
+    if (!fs.existsSync(filePath)) {
+      console.error("¡EL ARCHIVO NO EXISTE EN ESA RUTA!");
+      return res.status(404).json({ error: "El instalador biométrico no se encuentra en el servidor." });
+    }
+
+    const stats = fs.statSync(filePath);
+    console.log(`Tamaño real del archivo en disco: ${stats.size} bytes`);
+
+    if (stats.size === 0) {
+      console.error("¡El archivo existe pero está completamente vacío (0 bytes)!");
+      return res.status(500).json({ error: "El archivo está corrupto o vacío en el servidor." });
+    }
+    res.setHeader('X-Accel-Buffering', 'no');
     res.download(filePath, 'biometrico.exe', (err) => {
       if (err) {
         console.error("Error durante la descarga:", err);
-        // Aquí decides si borrarlo o no, dependiendo de tu regla de negocio
       } else {
         console.log("Descarga completada con éxito por el cliente.");
-        // RECIÉN AQUÍ lo borras del servidor
-        fs.unlink(filePath, (unlinkErr) => {
-          if (unlinkErr) console.error("No se pudo borrar el archivo temporal:", unlinkErr);
-        });
+
       }
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
-
 router.get('/actual-version', (req, res) => {
   try {
     res.status(200).json({ latest_version: '1.0.5', download_url: 'https://api.nexay.fit//v1/terminals/download-biometric' });
