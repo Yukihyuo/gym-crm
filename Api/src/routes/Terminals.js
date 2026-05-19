@@ -28,10 +28,14 @@ router.get('/download-biometric', (req, res) => {
     console.log("petición")
     res.download(filePath, 'biometrico.exe', (err) => {
       if (err) {
-        console.error('Error descargando archivo:', err);
-        if (!res.headersSent) {
-          res.status(500).json({ error: 'No se pudo descargar el archivo' });
-        }
+        console.error("Error durante la descarga:", err);
+        // Aquí decides si borrarlo o no, dependiendo de tu regla de negocio
+      } else {
+        console.log("Descarga completada con éxito por el cliente.");
+        // RECIÉN AQUÍ lo borras del servidor
+        fs.unlink(filePath, (unlinkErr) => {
+          if (unlinkErr) console.error("No se pudo borrar el archivo temporal:", unlinkErr);
+        });
       }
     });
   } catch (error) {
