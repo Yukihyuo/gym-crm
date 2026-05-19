@@ -24,7 +24,7 @@ const router = express.Router();
 
 router.get('/download-biometric', (req, res) => {
   try {
-    const filePath = path.join(__dirname, '../dist/biometrico.exe');
+    const filePath = path.join(__dirname, '../dist/biometrico.zip');
     console.log("Petición recibida para la ruta:", filePath);
 
     // VALIDACIÓN CRÍTICA
