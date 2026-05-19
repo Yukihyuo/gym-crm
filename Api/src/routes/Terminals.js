@@ -24,7 +24,7 @@ const router = express.Router();
 
 router.get('/download-biometric', (req, res) => {
   try {
-    const filePath = path.join(__dirname, '../dist/biometrico.zip');
+    const filePath = path.join(__dirname, '../dist/biometric.zip');
     console.log("Petición recibida para la ruta:", filePath);
 
     // VALIDACIÓN CRÍTICA
@@ -41,7 +41,7 @@ router.get('/download-biometric', (req, res) => {
       return res.status(500).json({ error: "El archivo está corrupto o vacío en el servidor." });
     }
     res.setHeader('X-Accel-Buffering', 'no');
-    res.download(filePath, 'biometrico.exe', (err) => {
+    res.download(filePath, 'biometrico.zip', (err) => {
       if (err) {
         console.error("Error durante la descarga:", err);
       } else {
