@@ -6,10 +6,30 @@ import Client from "../models/Client.js"
 import Store from "../models/Store.js"
 import Visit from "../models/Visit.js"
 import Brand from "../models/Brand.js"
-import SubscriptionAssignment from "../models/SubscriptionAssignment.js"
 import { sendWelcomeEmail } from "../emails/email.handler.js"
 import { findClientByIdentifier, registerVisit } from "../services/Access.services.js"
 import Terminal from "../models/Terminal.js"
+import {
+  buildClientResponse,
+  buildClientCreatePayload,
+  createClientRegistrationFeeAssignment,
+  ensureClientIsActiveOrThrow,
+  ensureDerivedUsernameIsUnique,
+  ensureDifferentPasswordOrThrow,
+  ensureEmailUpdateIsUnique,
+  ensureEmailUnique,
+  ensurePasswordMatchesOrThrow,
+  ensureUsernameUnique,
+  getClientByIdOrThrow,
+  getClientForLoginOrThrow,
+  getStoreOrThrow,
+  normalizeClientCreateInput,
+  resolveAccessCode,
+  resolveDefaultPassword,
+  resolveUsername,
+  sendWelcomeEmailSafely,
+  validateRequiredClientFields
+} from "../utils/clients.utils.js"
 
 
 const router = express.Router()
@@ -75,135 +95,76 @@ router.get('/searchSelect/:search', async (req, res) => {
 router.post('/create', async (req, res) => {
   try {
     const {
-      email,
-      accessCode: requestedAccessCode,
       storeId,
       profile,
-      username: requestedUsername
-    } = req.body;
+      requestedUsername,
+      normalizedEmail,
+      normalizedAccessCode,
+      normalizedPhone
+    } = normalizeClientCreateInput(req.body)
 
-    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : ''
-    const normalizedAccessCode = typeof requestedAccessCode === 'string' ? requestedAccessCode.trim() : ''
-    const normalizedPhone = typeof profile?.phone === 'string' ? profile.phone.trim() : ''
+    validateRequiredClientFields({ storeId, profile })
 
-    // Validar campos requeridos
-    if (!storeId || !profile?.names || !profile?.lastNames) {
-      return res.status(400).json({
-        message: 'ID de tienda, nombres y apellidos son requeridos'
-      });
-    }
+    const store = await getStoreOrThrow(storeId)
+    await ensureEmailUnique(normalizedEmail)
 
-    // Buscar la tienda para obtener el brandId
-    const store = await Store.findById(storeId);
+    const username = resolveUsername({ requestedUsername, normalizedEmail })
+    await ensureUsernameUnique(username)
 
-    if (!store) {
-      return res.status(404).json({
-        message: 'Tienda no encontrada'
-      });
-    }
+    const accessCode = await resolveAccessCode({
+      normalizedAccessCode,
+      brandId: store.brandId,
+      generateRandomValue
+    })
 
-    if (normalizedEmail) {
-      // Verificar si el cliente ya existe por email
-      const existingClient = await Client.findOne({ email: normalizedEmail });
-
-      if (existingClient) {
-        return res.status(400).json({
-          message: 'El email ya está registrado'
-        });
-      }
-    }
-
-    // Permitir username manual; si no se envía, se deriva del email
-    const username = typeof requestedUsername === 'string' && requestedUsername.trim()
-      ? requestedUsername.trim()
-      : normalizedEmail ? normalizedEmail.split('@')[0] : '';
-
-    if (!username) {
-      return res.status(400).json({
-        message: 'Username inválido. Si no envías username, debes enviar un email válido.'
-      });
-    }
-
-    // Verificar si el username ya existe
-    const existingUsername = await Client.findOne({ username });
-
-    if (existingUsername) {
-      return res.status(400).json({
-        message: 'El username ya existe. Use uno diferente.'
-      });
-    }
-
-    let accessCode = normalizedAccessCode
-    if (!accessCode) {
-      let generatedCode = ''
-      let collision = true
-
-      while (collision) {
-        generatedCode = generateRandomValue(4)
-        // accessCode es único por marca
-        const existingCode = await Client.findOne({ brandId: store.brandId, accessCode: generatedCode })
-        collision = Boolean(existingCode)
-      }
-
-      accessCode = generatedCode
-    } else {
-      const existingCode = await Client.findOne({ brandId: store.brandId, accessCode })
-      if (existingCode) {
-        return res.status(400).json({
-          message: 'El accessCode ya existe en esta marca. Use uno diferente.'
-        })
-      }
-    }
-
-    let defaultPassword = username
-    if (!normalizedEmail && normalizedAccessCode) {
-      defaultPassword = normalizedAccessCode
-    }
-
-    if (!normalizedEmail && !normalizedAccessCode) {
-      defaultPassword = generateRandomValue(6)
-    }
+    const defaultPassword = resolveDefaultPassword({
+      username,
+      normalizedEmail,
+      normalizedAccessCode,
+      generateRandomValue
+    })
 
     // Generar contraseña hasheada de acuerdo a la regla de creación
     const hashedPassword = await bcrypt.hash(defaultPassword, 10);
 
     // Crear el nuevo cliente
-    const newClient = new Client({
-      brandId: store.brandId,
-      storeId,
-      username,
-      accessCode,
-      email: normalizedEmail || undefined,
-      password: hashedPassword,
-      profile: {
-        names: profile.names,
-        lastNames: profile.lastNames,
-        phone: normalizedPhone || undefined
-      }
-    });
+    const newClient = new Client(
+      buildClientCreatePayload({
+        store,
+        username,
+        accessCode,
+        normalizedEmail,
+        normalizedPhone,
+        profile,
+        hashedPassword
+      })
+    )
 
     await newClient.save();
 
-    let welcomeEmailSent = false;
     try {
-      const brand = await Brand.findById(store.brandId);
-      if (brand && normalizedEmail) {
-        await sendWelcomeEmail(newClient, brand);
-        welcomeEmailSent = true;
-      }
-    } catch (emailError) {
-      console.error('Error enviando email de bienvenida:', emailError);
+      await createClientRegistrationFeeAssignment({
+        clientId: newClient._id,
+        storeId: store._id,
+        brandId: store.brandId
+      })
+    } catch (assignmentError) {
+      // Evita cliente huérfano si falla la cuota de inscripción.
+      await Client.findByIdAndDelete(newClient._id)
+      throw assignmentError
     }
+
+    const welcomeEmailSent = await sendWelcomeEmailSafely({
+      client: newClient,
+      brandId: store.brandId,
+      normalizedEmail
+    })
 
     res.status(201).json({
       message: 'Cliente creado exitosamente',
       welcomeEmailSent,
       client: {
-        id: newClient._id,
-        username: newClient.username,
-        email: newClient.email,
-        accessCode: newClient.accessCode,
-        profile: newClient.profile
+        ...buildClientResponse(newClient)
       },
       credentials: {
         username: username,
@@ -214,6 +175,14 @@ router.post('/create', async (req, res) => {
 
   } catch (error) {
     console.error('Error en create:', error);
+
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({
+        message: error.message,
+        error: error.message
+      })
+    }
+
     res.status(500).json({
       message: 'Error al crear cliente',
       error: error.message
@@ -234,32 +203,13 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Buscar cliente por username o email
-    const client = await Client.findOne({
-      $or: [{ username }, { email: username }]
-    });
-
-    if (!client) {
-      return res.status(401).json({
-        message: 'Credenciales inválidas'
-      });
-    }
-
-    // Verificar si el cliente está activo
-    if (!client.status) {
-      return res.status(403).json({
-        message: 'Cliente inactivo'
-      });
-    }
-
-    // Verificar contraseña
-    const isPasswordValid = await bcrypt.compare(password, client.password);
-
-    if (!isPasswordValid) {
-      return res.status(401).json({
-        message: 'Credenciales inválidas'
-      });
-    }
+    const client = await getClientForLoginOrThrow(username)
+    ensureClientIsActiveOrThrow(client)
+    await ensurePasswordMatchesOrThrow({
+      plainPassword: password,
+      hashedPassword: client.password,
+      invalidMessage: 'Credenciales inválidas'
+    })
 
     const token = jwt.sign(
       {
@@ -274,18 +224,19 @@ router.post('/login', async (req, res) => {
     res.status(200).json({
       message: 'Login exitoso',
       token,
-      client: {
-        id: client._id,
-        username: client.username,
-        email: client.email,
-        profile: client.profile,
-        brandId: client.brandId,
-        storeId: client.storeId
-      }
+      client: buildClientResponse(client)
     });
 
   } catch (error) {
     console.error('Error en login:', error);
+
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({
+        message: error.message,
+        error: error.message
+      })
+    }
+
     res.status(500).json({
       message: 'Error al iniciar sesión',
       error: error.message
@@ -406,36 +357,15 @@ router.put('/update/:id', async (req, res) => {
     const { id } = req.params;
     const { email, profile, status } = req.body;
 
-    // Buscar el cliente
-    const client = await Client.findById(id);
-
-    if (!client) {
-      return res.status(404).json({
-        message: 'Cliente no encontrado'
-      });
-    }
+    const client = await getClientByIdOrThrow(id)
 
     // Actualizar email y username si se cambia el email
     if (email && email !== client.email) {
-      // Verificar que el nuevo email no exista
-      const existingEmail = await Client.findOne({ email, _id: { $ne: id } });
-
-      if (existingEmail) {
-        return res.status(400).json({
-          message: 'El email ya está en uso'
-        });
-      }
+      await ensureEmailUpdateIsUnique({ email, id })
 
       const newUsername = email.split('@')[0];
 
-      // Verificar que el nuevo username no exista
-      const existingUsername = await Client.findOne({ username: newUsername, _id: { $ne: id } });
-
-      if (existingUsername) {
-        return res.status(400).json({
-          message: 'El username derivado del email ya existe'
-        });
-      }
+      await ensureDerivedUsernameIsUnique({ username: newUsername, id })
 
       client.email = email;
       client.username = newUsername;
@@ -455,17 +385,19 @@ router.put('/update/:id', async (req, res) => {
 
     res.status(200).json({
       message: 'Cliente actualizado exitosamente',
-      client: {
-        id: client._id,
-        username: client.username,
-        email: client.email,
-        profile: client.profile,
-        status: client.status
-      }
+      client: buildClientResponse(client)
     });
 
   } catch (error) {
     console.error('Error en update:', error);
+
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({
+        message: error.message,
+        error: error.message
+      })
+    }
+
     res.status(500).json({
       message: 'Error al actualizar cliente',
       error: error.message
@@ -523,39 +455,17 @@ router.post('/changePassword', async (req, res) => {
       });
     }
 
-    // Buscar cliente
-    const client = await Client.findById(clientId);
-
-    if (!client) {
-      return res.status(404).json({
-        message: 'Cliente no encontrado'
-      });
-    }
-
-    // Verificar si el cliente está activo
-    if (!client.status) {
-      return res.status(403).json({
-        message: 'Cliente inactivo'
-      });
-    }
-
-    // Verificar contraseña actual
-    const isPasswordValid = await bcrypt.compare(currentPassword, client.password);
-
-    if (!isPasswordValid) {
-      return res.status(401).json({
-        message: 'Contraseña actual incorrecta'
-      });
-    }
-
-    // Verificar que la nueva contraseña sea diferente
-    const isSamePassword = await bcrypt.compare(newPassword, client.password);
-
-    if (isSamePassword) {
-      return res.status(400).json({
-        message: 'La nueva contraseña debe ser diferente a la actual'
-      });
-    }
+    const client = await getClientByIdOrThrow(clientId)
+    ensureClientIsActiveOrThrow(client)
+    await ensurePasswordMatchesOrThrow({
+      plainPassword: currentPassword,
+      hashedPassword: client.password,
+      invalidMessage: 'Contraseña actual incorrecta'
+    })
+    await ensureDifferentPasswordOrThrow({
+      newPassword,
+      hashedPassword: client.password
+    })
 
     // Hashear la nueva contraseña
     const hashedNewPassword = await bcrypt.hash(newPassword, 10);
@@ -570,6 +480,14 @@ router.post('/changePassword', async (req, res) => {
 
   } catch (error) {
     console.error('Error en changePassword:', error);
+
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({
+        message: error.message,
+        error: error.message
+      })
+    }
+
     res.status(500).json({
       message: 'Error al cambiar contraseña',
       error: error.message
@@ -663,14 +581,14 @@ router.post('/login-qr-contact', async (req, res) => {
 router.get('/get-finger-prints/:terminalId', async (req, res) => {
   const { terminalId } = req.params
   try {
-    const terminal = await Terminal.findById(terminalId)
+    const terminal = await Terminal.findById(terminalId).select('storeId').lean()
     if (!terminal) {
       return res.status(404).json({
         message: 'Terminal no encontrada'
       })
     }
 
-    const store = await Store.findById(terminal.storeId)
+    const store = await Store.findById(terminal.storeId).select('brandId').lean()
     if (!store) {
       return res.status(404).json({
         message: 'Tienda no encontrada'
@@ -678,6 +596,8 @@ router.get('/get-finger-prints/:terminalId', async (req, res) => {
     }
 
     const clients = await Client.find({ brandId: store.brandId, fingerprint: { $ne: null } })
+      .select('_id fingerprint')
+      .lean()
 
     if (!clients || clients.length === 0) {
       return res.status(404).json({

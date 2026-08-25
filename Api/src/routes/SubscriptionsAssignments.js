@@ -6,93 +6,27 @@ import Client from "../models/Client.js"
 import Store from "../models/Store.js"
 import Subscription from "../models/Subscription.js"
 import { updateCashCutWithDocument } from "./CashCuts.js";
+import {
+  buildSubscriptionsError,
+  createSubscriptionAssignment,
+  findPopulatedAssignmentById,
+  populateAssignmentQuery,
+  validateAssignmentEditableRefs
+} from "../utils/subscriptions.utils.js"
 
 const router = express.Router()
-
-const calculateEndDate = (startDate, duration) => {
-  const value = Number(duration?.value || 0);
-  const unit = duration?.unit || 'months'; // Day.js acepta 'days', 'weeks', 'months', 'years'
-
-  if (value <= 0) return null;
-
-  // Regla de negocio: duración de 1 día termina el mismo día de inicio.
-  if (unit === 'days' && value === 1) {
-    return dayjs(startDate).endOf('day').toDate();
-  }
-
-  return dayjs(startDate)
-    .add(value, unit)
-    .endOf('day')
-    .toDate();
-};
 
 // --- ENDPOINT: CREAR ASIGNACIÓN (CORREGIDO) ---
 router.post('/create', async (req, res) => {
   try {
     const { clientId, storeId, planId, paymentMethod } = req.body;
 
-    if (!clientId || !storeId || !planId || !paymentMethod) {
-      return res.status(400).json({
-        message: 'Faltan datos requeridos: clientId, storeId, planId, paymentMethod'
-      });
-    }
-
-    const [client, store, plan] = await Promise.all([
-      Client.findById(clientId),
-      Store.findById(storeId),
-      Subscription.findById(planId)
-    ]);
-
-    if (!client) {
-      return res.status(404).json({ message: 'Cliente no encontrado' });
-    }
-
-    if (!store) {
-      return res.status(404).json({ message: 'Tienda no encontrada' });
-    }
-
-    if (!plan) {
-      return res.status(404).json({ message: 'Membresía no encontrada' });
-    }
-
-    if (client.brandId !== store.brandId || plan.brandId !== store.brandId) {
-      return res.status(400).json({
-        message: 'Cliente, tienda y membresía deben pertenecer a la misma marca'
-      });
-    }
-
-    const todayStart = dayjs().startOf('day').toDate();
-
-    // Si ya existe una suscripción activa para hoy o más adelante, encadenamos la nueva.
-    const latestActiveAssignment = await SubscriptionAssignment.findOne({
+    const { assignment, queued } = await createSubscriptionAssignment({
       clientId,
-      status: 'active',
-      endDate: { $gte: todayStart }
-    }).sort({ endDate: -1, createdAt: -1 });
-
-    const startDate = latestActiveAssignment?.endDate
-      ? dayjs(latestActiveAssignment.endDate).add(1, 'day').startOf('day').toDate()
-      : todayStart;
-
-    const endDate = calculateEndDate(startDate, plan.duration);
-
-    if (!endDate) {
-      return res.status(400).json({
-        message: 'La duración de la membresía es inválida'
-      });
-    }
-
-    const assignment = await SubscriptionAssignment.create({
-      brandId: store.brandId,
       storeId,
-      clientId,
       planId,
-      startDate,
-      endDate,
-      pricePaid: Number(plan.price?.amount || 0),
-      paymentMethod,
-      status: 'active'
-    });
+      paymentMethod
+    })
 
     const cashCutId = req.headers['x-cash-cut-id'];
     if (cashCutId) {
@@ -102,22 +36,25 @@ router.post('/create', async (req, res) => {
       });
     }
 
-    const populatedAssignment = await SubscriptionAssignment.findById(assignment._id)
-      .populate({ path: 'clientId', select: 'profile.names profile.lastNames email' })
-      .populate({ path: 'storeId', select: 'name' })
-      .populate({ path: 'planId', select: 'name status duration price' });
-
-    const isQueued = Boolean(latestActiveAssignment?.endDate);
+    const populatedAssignment = await findPopulatedAssignmentById(assignment._id, true)
 
     res.status(201).json({
-      message: isQueued
+      message: queued
         ? 'Suscripción registrada exitosamente. Se activará al día siguiente de la suscripción vigente.'
         : 'Suscripción asignada exitosamente',
       assignment: populatedAssignment,
-      queued: isQueued
+      queued
     });
   } catch (error) {
     console.error('Error en create:', error);
+
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({
+        message: error.message,
+        error: error.message
+      })
+    }
+
     res.status(500).json({
       message: 'Error al crear asignación de suscripción',
       error: error.message
@@ -168,10 +105,10 @@ router.get('/brand/:brandId', async (req, res) => {
   try {
     const { brandId } = req.params;
 
-    const assignments = await SubscriptionAssignment.find({ brandId })
-      .populate({ path: 'clientId', select: 'profile.names profile.lastNames email' })
-      .populate({ path: 'storeId', select: 'name' })
-      .populate({ path: 'planId', select: 'name status' })
+    const assignments = await populateAssignmentQuery(
+      SubscriptionAssignment.find({ brandId }),
+      false
+    )
       .sort({ createdAt: -1 });
 
     res.status(200).json({
@@ -202,10 +139,10 @@ router.get('/client/:clientId', async (req, res) => {
       });
     }
 
-    const assignments = await SubscriptionAssignment.find({ clientId })
-      .populate({ path: 'clientId', select: 'profile.names profile.lastNames email' })
-      .populate({ path: 'storeId', select: 'name' })
-      .populate({ path: 'planId', select: 'name status' })
+    const assignments = await populateAssignmentQuery(
+      SubscriptionAssignment.find({ clientId }),
+      false
+    )
       .sort({ createdAt: -1 });
 
     res.status(200).json({
@@ -229,10 +166,7 @@ router.get('/getById/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const assignment = await SubscriptionAssignment.findById(id)
-      .populate({ path: 'clientId', select: 'profile.names profile.lastNames email' })
-      .populate({ path: 'storeId', select: 'name' })
-      .populate({ path: 'planId', select: 'name status' });
+    const assignment = await findPopulatedAssignmentById(id, false)
 
     if (!assignment) {
       return res.status(404).json({
@@ -274,37 +208,17 @@ router.put('/update/:id', async (req, res) => {
       });
     }
 
+    await validateAssignmentEditableRefs({
+      storeId,
+      planId,
+      assignmentBrandId: assignment.brandId
+    })
+
     if (storeId !== undefined) {
-      const store = await Store.findById(storeId);
-      if (!store) {
-        return res.status(404).json({
-          message: 'Tienda no encontrada'
-        });
-      }
-
-      if (store.brandId !== assignment.brandId) {
-        return res.status(400).json({
-          message: 'La tienda debe pertenecer a la misma marca de la asignación'
-        });
-      }
-
       assignment.storeId = storeId;
     }
 
     if (planId !== undefined) {
-      const plan = await Subscription.findById(planId);
-      if (!plan) {
-        return res.status(404).json({
-          message: 'Membresía no encontrada'
-        });
-      }
-
-      if (plan.brandId !== assignment.brandId) {
-        return res.status(400).json({
-          message: 'La membresía debe pertenecer a la misma marca de la asignación'
-        });
-      }
-
       assignment.planId = planId;
     }
 
@@ -323,6 +237,14 @@ router.put('/update/:id', async (req, res) => {
 
   } catch (error) {
     console.error('Error en update:', error);
+
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({
+        message: error.message,
+        error: error.message
+      })
+    }
+
     res.status(500).json({
       message: 'Error al actualizar asignación',
       error: error.message

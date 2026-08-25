@@ -4,6 +4,11 @@ import { API_ENDPOINTS } from '@/config/api'
 
 export interface BrandSettings {
   requireCashClosing: boolean
+  requireSaleUser: boolean
+  userSaleDefault: string | null
+  requiresRegistrationFee: boolean
+  registrationFeeId: string | null
+  requireSpecificMembershipStartDate: boolean
 }
 
 interface BrandConfigState {
@@ -23,6 +28,11 @@ type BrandConfigResponse = {
 
 const normalizeConfig = (settings?: Partial<BrandSettings> | null): BrandSettings => ({
   requireCashClosing: settings?.requireCashClosing ?? false,
+  requireSaleUser: settings?.requireSaleUser ?? true,
+  userSaleDefault: settings?.userSaleDefault ?? null,
+  requiresRegistrationFee: settings?.requiresRegistrationFee ?? false,
+  registrationFeeId: settings?.registrationFeeId ?? null,
+  requireSpecificMembershipStartDate: settings?.requireSpecificMembershipStartDate ?? false,
 })
 
 export const useBrandConfigStore = create<BrandConfigState>((set) => ({

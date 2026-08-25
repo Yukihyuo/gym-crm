@@ -6,6 +6,7 @@ import Staff from '../models/Staff.js';
 import Store from '../models/Store.js';
 import Client from '../models/Client.js';
 import { updateCashCutWithDocument } from './CashCuts.js';
+import { getBrandSettings } from '../utils/brand.utils.js';
 
 const router = express.Router();
 
@@ -25,12 +26,13 @@ const generateReceiptNumber = async () => {
 // POST - Crear una nueva venta
 router.post('/create', async (req, res) => {
   try {
+    console.log(req.body)
     const { storeId, clientId, items, payment, userId, totals } = req.body;
 
     // Validar que existan los datos requeridos
-    if (!storeId || !items || !items.length || !payment || !userId) {
+    if (!storeId || !items || !items.length || !payment) {
       return res.status(400).json({
-        message: 'Faltan datos requeridos: storeId, items, payment, userId'
+        message: 'Faltan datos requeridos: storeId, items, payment'
       });
     }
 
@@ -39,11 +41,24 @@ router.post('/create', async (req, res) => {
       return res.status(404).json({ message: 'Tienda no encontrada' });
     }
 
-    // Validar que el usuario vendedor exista
-    const seller = await Staff.findById(userId);
+    const brandSettings = await getBrandSettings(store.brandId)
+    const requireSaleUser = brandSettings?.requireSaleUser ?? true
+    const defaultSaleUserId = brandSettings?.userSaleDefault ?? null
+    const resolvedUserId = userId || defaultSaleUserId || null
 
-    if (!seller) {
-      return res.status(404).json({ message: 'Vendedor no encontrado' });
+    if (requireSaleUser && !resolvedUserId) {
+      return res.status(400).json({ message: 'Se requiere userId para registrar la venta' })
+    }
+
+    // Validar que el usuario vendedor exista cuando se envía o se resuelve por configuración.
+    let seller = null
+    if (resolvedUserId) {
+      console.log(resolvedUserId)
+      seller = await Staff.findById(resolvedUserId)
+
+      if (!seller) {
+        return res.status(404).json({ message: 'Vendedor no encontrado' });
+      }
     }
 
     if (clientId) {
@@ -130,7 +145,7 @@ router.post('/create', async (req, res) => {
     // Crear la venta
     const sale = new Sale({
       storeId: storeId,
-      userId,
+      userId: resolvedUserId,
       clientId: clientId || null,
       receiptNumber,
       items: saleItems,

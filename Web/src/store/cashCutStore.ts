@@ -87,6 +87,7 @@ export const useCashCutStore = create<CashCutState>()(
 					return newCashCutId
 				} catch (error) {
 					const message = error instanceof Error ? error.message : 'Error al abrir caja'
+          console.log(error)
 					set({ loading: false, error: message })
 					throw error
 				}

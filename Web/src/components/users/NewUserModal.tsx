@@ -26,8 +26,12 @@ const userSchema = z.object({
     .max(30, "El usuario no puede exceder 30 caracteres")
     .regex(/^[a-zA-Z0-9_]+$/, "El usuario solo puede contener letras, números y guiones bajos"),
   email: z.string()
-    .min(1, "El email es requerido")
-    .email("Email inválido"),
+    .trim()
+    .optional()
+    .refine((value) => !value || z.string().email().safeParse(value).success, "Email inválido"),
+  password: z.string()
+    .min(6, "La contraseña debe tener al menos 6 caracteres")
+    .max(100, "La contraseña no puede exceder 100 caracteres"),
   names: z.string()
     .min(1, "El nombre es requerido")
     .max(50, "El nombre no puede exceder 50 caracteres"),
@@ -92,6 +96,7 @@ export function NewUserModal({ onSuccess, trigger }: NewUserModalProps) {
     defaultValues: {
       username: "",
       email: "",
+      password: "",
       names: "",
       lastNames: "",
       phone: "",
@@ -101,7 +106,6 @@ export function NewUserModal({ onSuccess, trigger }: NewUserModalProps) {
     },
   })
 
-  const emailValue = watch("email")
   const scopeType = watch("scopeType")
 
   // Cargar roles disponibles
@@ -139,15 +143,6 @@ export function NewUserModal({ onSuccess, trigger }: NewUserModalProps) {
     }
   }, [open, fetchRoles, fetchStores])
 
-  // Generar contraseña desde email (texto antes del @)
-  const generatePassword = (email: string): string => {
-    const atIndex = email.indexOf('@')
-    if (atIndex > 0) {
-      return email.substring(0, atIndex)
-    }
-    return email
-  }
-
   const onSubmit = async (data: UserFormValues) => {
     // Validar que si es scope tipo store, se haya seleccionado una tienda
     if (data.scopeType === "store" && !data.storeId) {
@@ -157,9 +152,6 @@ export function NewUserModal({ onSuccess, trigger }: NewUserModalProps) {
 
     setIsLoading(true)
     try {
-      // Generar contraseña automáticamente desde el email
-      const password = generatePassword(data.email)
-
       // Construir el scope
       const scope = data.scopeType === "brand" 
         ? { type: "brand" }
@@ -167,8 +159,8 @@ export function NewUserModal({ onSuccess, trigger }: NewUserModalProps) {
 
       const response = await axios.post(API_ENDPOINTS.STAFF.REGISTER, {
         username: data.username,
-        email: data.email,
-        password: password,
+        email: data.email?.trim() || undefined,
+        password: data.password,
         profile: {
           names: data.names,
           lastNames: data.lastNames,
@@ -180,7 +172,6 @@ export function NewUserModal({ onSuccess, trigger }: NewUserModalProps) {
       })
 
       toast.success(response.data.message || "Usuario creado exitosamente")
-      toast.info(`Contraseña generada: ${password}`, { autoClose: 10000 })
       
       // Reset form y cerrar modal
       reset()
@@ -221,7 +212,7 @@ export function NewUserModal({ onSuccess, trigger }: NewUserModalProps) {
         <DialogHeader>
           <DialogTitle>Crear Nuevo Usuario</DialogTitle>
           <DialogDescription>
-            Completa los datos para crear un nuevo usuario. La contraseña se generará automáticamente desde el email.
+            Completa los datos para crear un nuevo usuario.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)}>
@@ -248,7 +239,7 @@ export function NewUserModal({ onSuccess, trigger }: NewUserModalProps) {
             {/* Campo Email */}
             <div className="grid gap-2">
               <Label htmlFor="email">
-                Email <span className="text-red-500">*</span>
+                Email (opcional)
               </Label>
               <Input
                 id="email"
@@ -260,10 +251,22 @@ export function NewUserModal({ onSuccess, trigger }: NewUserModalProps) {
               {errors.email && (
                 <p className="text-sm text-red-500">{errors.email.message}</p>
               )}
-              {emailValue && emailValue.includes('@') && (
-                <p className="text-xs text-green-600">
-                  Contraseña generada: {generatePassword(emailValue)}
-                </p>
+            </div>
+
+            {/* Campo Contraseña */}
+            <div className="grid gap-2">
+              <Label htmlFor="password">
+                Contraseña <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="Mínimo 6 caracteres"
+                {...register("password")}
+                disabled={isLoading}
+              />
+              {errors.password && (
+                <p className="text-sm text-red-500">{errors.password.message}</p>
               )}
             </div>
 

@@ -13,7 +13,8 @@ const saleSchema = new mongoose.Schema({
   userId: {
     type: String,
     ref: 'Staff',
-    required: true
+    required: false,
+    default: null
   },
   clientId: {
     type: String,

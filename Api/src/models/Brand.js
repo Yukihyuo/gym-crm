@@ -31,7 +31,12 @@ const brandSchema = new mongoose.Schema({
     trim: true
   },
   settings: {
-    requireCashClosing: { type: Boolean, default: false }, 
+    requireCashClosing: { type: Boolean, default: false },
+    requireSaleUser: { type: Boolean, required: true, default: true },
+    userSaleDefault: { type: String, default: null },
+    requiresRegistrationFee: { type: Boolean, required: true, default: false },
+    registrationFeeId: { type: String, required: false },
+    requireSpecificMembershipStartDate: { type: Boolean, required: true, default: false },
   },
   isActive: {
     type: Boolean,

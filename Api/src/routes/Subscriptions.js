@@ -35,7 +35,7 @@ router.post('/create', async (req, res) => {
 		}
 
 		// Validaciones de negocio
-		if (duration.value <= 0) {
+		if (duration.value < 0) {
 			return res.status(400).json({
 				message: 'La duración debe ser mayor a 0'
 			});

@@ -78,6 +78,9 @@ export const API_ENDPOINTS = {
     GET_ALL_USERS: `${API_URL}v1/staff/getAll`,
     GET_BY_BRAND: (brandName: string) => `${API_URL}v1/staff/brand/${brandName}`,
     GET_BY_STORE: (storeName: string) => `${API_URL}v1/staff/store/${storeName}`,
+    GET_BY_ID: (userId: string) => `${API_URL}v1/staff/getById/${userId}`,
+    UPDATE_PROFILE: (userId: string) => `${API_URL}v1/staff/updateProfile/${userId}`,
+    UPDATE_STATUS: (userId: string) => `${API_URL}v1/staff/updateStatus/${userId}`,
     CHANGE_PASSWORD: `${API_URL}v1/staff/changePassword`,
   },
 

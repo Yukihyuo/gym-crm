@@ -21,7 +21,6 @@ const validateUser = async (userId) => {
 }
 
 router.get('/', (req, res) => {
-  console.log(1)
   res.json({ message: 'Expenses API is working' })
 })
 
@@ -130,7 +129,6 @@ router.post('/create', async (req, res) => {
 })
 
 router.get('/getAll', async (req, res) => {
-  console.log(123)
 	try {
 		const brandId = req.headers['x-brand-id'] || req.query.brandId
 		const storeId = req.headers['x-store-id'] || req.query.storeId
@@ -163,6 +161,7 @@ router.get('/getAll', async (req, res) => {
 		const expenses = await Expense.find(filters)
 			.populate('userId', 'username email profile.names profile.lastNames')
 			.populate('storeId', 'name')
+			.lean()
 			.sort({ date: -1, createdAt: -1 })
 
 		return res.status(200).json({
@@ -188,6 +187,7 @@ router.get('/getById/:id', async (req, res) => {
 		const expense = await Expense.findOne({ _id: id, brandId, storeId })
 			.populate('userId', 'username email profile.names profile.lastNames')
 			.populate('storeId', 'name')
+			.lean()
 
 		if (!expense) {
 			return res.status(404).json({ message: 'Gasto no encontrado' })

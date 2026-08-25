@@ -6,7 +6,7 @@ import Expense from "../models/Expense.js"
 
 const router = express.Router()
 
-const OPEN_STATUSES = ['pending', 'incomplete']
+const OPEN_STATUSES = ['pending']
 
 const isOpenCashCut = (status) => OPEN_STATUSES.includes(status)
 

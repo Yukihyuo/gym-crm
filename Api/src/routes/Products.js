@@ -1,6 +1,7 @@
 import express from 'express';
 import Product from '../models/Product.js';
 import Store from '../models/Store.js';
+import { uploadProductImage } from '../middleware/productUpload.middleware.js';
 
 const router = express.Router();
 
@@ -10,15 +11,20 @@ const validateStoreExists = async (storeId) => {
   return !!store;
 };
 
+
+
+
 // Create - Crear un nuevo producto
-router.post('/create', async (req, res) => {
+router.post('/create', uploadProductImage.single('image'), async (req, res) => {
   try {
     const { storeId, name, description, price, stock, category, status } = req.body;
+    const parsedPrice = Number(price);
+    const parsedStock = stock !== undefined ? Number(stock) : 0;
 
     // Validar campos requeridos
-    if (!storeId || !name || !description || price === undefined || !category) {
+    if (!storeId || !name || !description || price === undefined || !category || stock === undefined) {
       return res.status(400).json({
-        message: 'ID de tienda, nombre, descripción, precio y categoría son requeridos'
+        message: 'ID de tienda, nombre, descripción, precio, stock y categoría son requeridos'
       });
     }
 
@@ -30,28 +36,31 @@ router.post('/create', async (req, res) => {
     }
 
     // Validar precio positivo
-    if (price < 0) {
+    if (Number.isNaN(parsedPrice) || parsedPrice < 0) {
       return res.status(400).json({
         message: 'El precio no puede ser negativo'
       });
     }
 
     // Validar stock positivo
-    if (stock !== undefined && stock < 0) {
+    if (Number.isNaN(parsedStock) || parsedStock < 0) {
       return res.status(400).json({
         message: 'El stock no puede ser negativo'
       });
     }
+
+    const imagePath = req.file ? `v1/uploads/products/${req.file.filename}` : null;
 
     // Crear el nuevo producto
     const newProduct = new Product({
       storeId,
       name,
       description,
-      price,
-      stock: stock || 0,
+      price: parsedPrice,
+      stock: parsedStock,
       category,
-      status: status || 'available'
+      status: status || 'available',
+      imageUrl: imagePath,
     });
 
     await newProduct.save();
@@ -134,10 +143,13 @@ router.get('/:storeId/getById/:id', async (req, res) => {
 });
 
 // Update - Actualizar un producto dentro de una tienda
-router.put('/:storeId/update/:id', async (req, res) => {
+router.put('/:storeId/update/:id', uploadProductImage.single('image'), async (req, res) => {
   try {
     const { storeId, id } = req.params;
     const { name, description, price, stock, category, status } = req.body;
+
+    const parsedPrice = price !== undefined ? Number(price) : undefined;
+    const parsedStock = stock !== undefined ? Number(stock) : undefined;
 
     const storeExists = await validateStoreExists(storeId);
     if (!storeExists) {
@@ -156,14 +168,14 @@ router.put('/:storeId/update/:id', async (req, res) => {
     }
 
     // Validar precio si se proporciona
-    if (price !== undefined && price < 0) {
+    if (price !== undefined && (Number.isNaN(parsedPrice) || parsedPrice < 0)) {
       return res.status(400).json({
         message: 'El precio no puede ser negativo'
       });
     }
 
     // Validar stock si se proporciona
-    if (stock !== undefined && stock < 0) {
+    if (stock !== undefined && (Number.isNaN(parsedStock) || parsedStock < 0)) {
       return res.status(400).json({
         message: 'El stock no puede ser negativo'
       });
@@ -182,10 +194,11 @@ router.put('/:storeId/update/:id', async (req, res) => {
     // Actualizar campos
     if (name !== undefined) product.name = name;
     if (description !== undefined) product.description = description;
-    if (price !== undefined) product.price = price;
-    if (stock !== undefined) product.stock = stock;
+    if (parsedPrice !== undefined) product.price = parsedPrice;
+    if (parsedStock !== undefined) product.stock = parsedStock;
     if (category !== undefined) product.category = category;
     if (status !== undefined) product.status = status;
+    if (req.file) product.imageUrl = `v1/uploads/products/${req.file.filename}`;
 
     await product.save();
 

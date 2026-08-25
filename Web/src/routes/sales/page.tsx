@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 import { Eye, MoreVertical } from 'lucide-react'
 import { PageHeader } from '@/components/global/PageHeader'
-import { NewSaleModal } from '@/components/sales/NewSaleModal'
 import { DetailsSaleModal } from '@/components/sales/DetailsSaleModal'
 import { Button } from '@/components/ui/button'
 import {
@@ -129,7 +129,9 @@ export default function SalesPage() {
         <div className="flex items-center gap-2">
           <CashCutModal />
           <ProtectedModule page="Sales" type="create" method="hide">
-            <NewSaleModal onSuccess={asyncLoad} />
+            <Button asChild>
+              <Link to="/sales/new">Nueva Venta</Link>
+            </Button>
           </ProtectedModule>
         </div>
       </div>

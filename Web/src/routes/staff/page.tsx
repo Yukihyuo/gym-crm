@@ -1,10 +1,14 @@
 import { PageHeader } from '@/components/global/PageHeader'
 import { Button } from '@/components/ui/button'
 import { NewUserModal } from '@/components/users/NewUserModal'
+import { StaffUserDetailsModal } from '@/components/users/StaffUserDetailsModal'
+import { StaffUserEditProfileModal } from '@/components/users/StaffUserEditProfileModal'
+import { StaffUserStatusModal } from '@/components/users/StaffUserStatusModal'
+import { StaffUserChangePasswordModal } from '@/components/users/StaffUserChangePasswordModal'
 import { API_ENDPOINTS } from '@/config/api'
 import axios from 'axios'
-import { User } from 'lucide-react'
-import React, { useEffect, useState, useCallback } from 'react'
+import { MoreHorizontal, User } from 'lucide-react'
+import { useEffect, useState, useCallback } from 'react'
 import {
   useReactTable,
   getCoreRowModel,
@@ -17,6 +21,11 @@ import {
   type ColumnFiltersState,
 } from '@tanstack/react-table'
 import { Input } from '@/components/ui/input'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 import { useAuthStore } from '@/store/authStore'
 import ProtectedModule from '@/components/global/ProtectedModule'
@@ -35,7 +44,7 @@ interface Profile {
 interface UserData {
   _id: string
   username: string
-  email: string
+  email?: string
   profile: Profile
   status: boolean
   assignments: Role[]
@@ -89,7 +98,7 @@ export default function Page() {
       accessorKey: "email",
       header: "Email",
       cell: ({ row }) => (
-        <div className="lowercase">{row.getValue("email")}</div>
+        <div className="lowercase">{String(row.getValue("email") || "Sin email")}</div>
       ),
     },
     {
@@ -104,9 +113,9 @@ export default function Page() {
       header: "Roles",
       cell: ({ row }) => (
         <div className="flex gap-1 flex-wrap">
-          {row.original.assignments.map((role) => (
+          {(row.original.assignments || []).map((role) => (
             <span
-              key={role.id}
+              key={role.id || role.roleName}
               className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold"
             >
               {role.roleName}
@@ -131,19 +140,25 @@ export default function Page() {
         </div>
       ),
     },
-    // {
-    //   id: "actions",
-    //   header: "Acciones",
-    //   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    //   cell: ({ row }) => {
-    //     // TODO: Agregar acciones específicas aquí
-    //     return (
-    //       <Button variant="ghost" size="sm">
-    //         <MoreHorizontal className="h-4 w-4" />
-    //       </Button>
-    //     )
-    //   },
-    // },
+    {
+      id: "actions",
+      header: "Acciones",
+      cell: ({ row }) => (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <StaffUserDetailsModal userId={row.original._id} />
+            <StaffUserEditProfileModal userId={row.original._id} onSuccess={asyncLoad} />
+            <StaffUserStatusModal userId={row.original._id} onSuccess={asyncLoad} />
+            <StaffUserChangePasswordModal userId={row.original._id} />
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ),
+    },
   ]
 
   const table = useReactTable({

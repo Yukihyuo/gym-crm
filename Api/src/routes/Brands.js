@@ -160,7 +160,7 @@ router.put('/update/:id', async (req, res) => {
   }
 });
 
-//Endpoint para actualizar solo la configuración de la marca
+//Endpoint para obtener solo la configuración de la marca
 router.get('/config', async (req, res) => {
   try {
     const brandId = getBrandIdFromRequest(req)
@@ -192,6 +192,7 @@ router.get('/config', async (req, res) => {
   }
 })
 
+//Endpoint para actualizar solo la configuración de la marca
 router.put('/config', async (req, res) => {
   try {
     const brandId = getBrandIdFromRequest(req)
@@ -217,6 +218,7 @@ router.put('/config', async (req, res) => {
       ...incomingSettings,
     }
 
+    brand.markModified('settings')
     await brand.save()
 
     res.status(200).json({

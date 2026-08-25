@@ -15,18 +15,22 @@ const router = express.Router();
 router.post('/register', async (req, res) => {
   try {
     const { username, email, password, profile, roleId, brandId, scope } = req.body;
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
 
     // Validar que los campos requeridos estén presentes
-    if (!username || !email || !password || !profile?.names || !profile?.lastNames) {
+    if (!username || !password || !profile?.names || !profile?.lastNames) {
       return res.status(400).json({
-        message: 'Username, email, password, nombres y apellidos son requeridos'
+        message: 'Username, password, nombres y apellidos son requeridos'
       });
     }
 
     // Verificar si el usuario ya existe
-    const existingUser = await Staff.findOne({
-      $or: [{ email }, { username }]
-    });
+    const duplicateFilters = [{ username }];
+    if (normalizedEmail) {
+      duplicateFilters.push({ email: normalizedEmail });
+    }
+
+    const existingUser = await Staff.findOne({ $or: duplicateFilters });
 
     if (existingUser) {
       return res.status(400).json({
@@ -40,7 +44,7 @@ router.post('/register', async (req, res) => {
     // Crear el nuevo usuario
     const newUser = new Staff({
       username,
-      email,
+      ...(normalizedEmail ? { email: normalizedEmail } : {}),
       password: hashedPassword,
       profile: {
         names: profile.names,
@@ -105,6 +109,144 @@ router.post('/register', async (req, res) => {
     res.status(500).json({
       message: 'Error al registrar usuario',
       error: error.message
+    });
+  }
+});
+
+// GetById - Obtener información de un usuario
+router.get('/getById/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const user = await Staff.findById(userId).select('-password');
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    const assignments = await RoleAssignment.find({ userId }).populate('roleId');
+
+    const userWithDetails = {
+      ...user.toObject(),
+      assignments: assignments.map((assignment) => ({
+        roleId: assignment.roleId?._id,
+        roleName: assignment.roleId?.name,
+        scope: assignment.scope,
+      })),
+    };
+
+    return res.status(200).json({
+      message: 'Usuario obtenido exitosamente',
+      user: userWithDetails,
+    });
+  } catch (error) {
+    console.error('Error en getById:', error);
+    return res.status(500).json({
+      message: 'Error al obtener usuario',
+      error: error.message,
+    });
+  }
+});
+
+// Patch - Actualizar perfil básico del usuario
+router.patch('/updateProfile/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { username, email, profile } = req.body;
+
+    const user = await Staff.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    const nextUsername = typeof username === 'string' ? username.trim() : user.username;
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+
+    if (!nextUsername) {
+      return res.status(400).json({ message: 'El username es requerido' });
+    }
+
+    const duplicateFilters = [{ username: nextUsername }];
+    if (normalizedEmail) {
+      duplicateFilters.push({ email: normalizedEmail });
+    }
+
+    const duplicated = await Staff.findOne({
+      _id: { $ne: userId },
+      $or: duplicateFilters,
+    });
+
+    if (duplicated) {
+      return res.status(400).json({ message: 'El username o email ya está en uso' });
+    }
+
+    user.username = nextUsername;
+    if (typeof email === 'string') {
+      user.email = normalizedEmail || undefined;
+    }
+
+    if (profile?.names !== undefined) {
+      user.profile.names = profile.names;
+    }
+
+    if (profile?.lastNames !== undefined) {
+      user.profile.lastNames = profile.lastNames;
+    }
+
+    if (profile?.phone !== undefined) {
+      user.profile.phone = profile.phone;
+    }
+
+    await user.save();
+
+    return res.status(200).json({
+      message: 'Perfil actualizado exitosamente',
+      user: {
+        _id: user._id,
+        username: user.username,
+        email: user.email,
+        profile: user.profile,
+        status: user.status,
+      },
+    });
+  } catch (error) {
+    console.error('Error en updateProfile:', error);
+    return res.status(500).json({
+      message: 'Error al actualizar perfil',
+      error: error.message,
+    });
+  }
+});
+
+// Patch - Actualizar status de usuario
+router.patch('/updateStatus/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { status } = req.body;
+
+    if (typeof status !== 'boolean') {
+      return res.status(400).json({ message: 'El status es requerido y debe ser booleano' });
+    }
+
+    const user = await Staff.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    user.status = status;
+    await user.save();
+
+    return res.status(200).json({
+      message: 'Estado actualizado exitosamente',
+      user: {
+        _id: user._id,
+        status: user.status,
+      },
+    });
+  } catch (error) {
+    console.error('Error en updateStatus:', error);
+    return res.status(500).json({
+      message: 'Error al actualizar estado del usuario',
+      error: error.message,
     });
   }
 });
@@ -391,15 +533,6 @@ router.post('/changePassword', async (req, res) => {
         message: 'Usuario no encontrado'
       });
     }
-
-    // Verificar si el usuario está activo
-    if (!user.status) {
-      return res.status(403).json({
-        message: 'Usuario inactivo'
-      });
-    }
-
-
 
     // Verificar que la nueva contraseña sea diferente
     const isSamePassword = await bcrypt.compare(newPassword, user.password);

@@ -33,6 +33,11 @@ const productSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  // Agregado opcional sin afectar registros anteriores
+  imageUrl: {
+    type: String,
+    default: null
+  },
   status: {
     type: String,
     enum: ['available', 'unavailable', 'discontinued'],

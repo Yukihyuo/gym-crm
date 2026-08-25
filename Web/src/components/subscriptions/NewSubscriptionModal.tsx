@@ -70,15 +70,15 @@ export default function NewSubscriptionModal({ onSubmit, onSubscriptionCreated }
       return;
     }
 
-    if (durationValue <= 0) {
-      toast.error("La duración debe ser mayor a 0");
-      return;
-    }
+    // if (durationValue <= 0) {
+    //   toast.error("La duración debe ser mayor a 0");
+    //   return;
+    // }
 
-    if (amount < 0) {
-      toast.error("El precio no puede ser negativo");
-      return;
-    }
+    // if (amount < 0) {
+    //   toast.error("El precio no puede ser negativo");
+    //   return;
+    // }
 
     const benefits = benefitsText
       .split("\n")
@@ -179,7 +179,7 @@ export default function NewSubscriptionModal({ onSubmit, onSubscriptionCreated }
                 <Input
                   id="durationValue"
                   type="number"
-                  min={1}
+                  min={0}
                   value={durationValue}
                   onChange={(e) => setDurationValue(Number(e.target.value))}
                   disabled={loading}

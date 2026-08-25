@@ -6,12 +6,14 @@ import Inventory from "./routes/inventory/page";
 import Pages from "./routes/pages/page";
 import Roles from "./routes/roles/page";
 import Sales from "./routes/sales/page";
+import { NewSaleModal } from "./components/sales/NewSaleModal";
 import Schedule from "./routes/schedule/page";
 import Access from "./routes/access/page";
 import Layout from "./components/layout/Layout";
 import Pruebas from "./routes/pruebas/page";
 import ProtectedModule from "./components/global/ProtectedModule";
 import Stores from "./routes/stores/page";
+import Brands from "./routes/brands/page";
 import Staff from "./routes/staff/page";
 import Clients from "./routes/clients/page";
 import Subscriptions from "@/routes/subscriptions/page";
@@ -61,6 +63,12 @@ const router = createBrowserRouter([
         </ProtectedModule>,
       },
       {
+        path: "/brands",
+        element: <ProtectedModule page="Brands" type="read" method="block" >
+          <Brands />
+        </ProtectedModule>,
+      },
+      {
         path: "/subscriptions",
         element: <ProtectedModule page="Subscriptions" type="read" method="block" >
           <Subscriptions />
@@ -93,6 +101,12 @@ const router = createBrowserRouter([
         path: "/sales",
         element: <ProtectedModule page="Sales" type="read" method="block" >
           <Sales />
+        </ProtectedModule>,
+      },
+      {
+        path: "/sales/new",
+        element: <ProtectedModule page="Sales" type="create" method="block" >
+          <NewSaleModal />
         </ProtectedModule>,
       },
       {
