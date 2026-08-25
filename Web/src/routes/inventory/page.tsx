@@ -34,7 +34,6 @@ import ProtectedModule from '@/components/global/ProtectedModule'
 interface ProductData {
   _id: string
   name: string
-  description: string
   price: number
   stock: number
   category: string
@@ -134,15 +133,6 @@ export default function Page() {
       header: "Nombre",
       cell: ({ row }) => (
         <div className="font-medium">{row.getValue("name")}</div>
-      ),
-    },
-    {
-      accessorKey: "description",
-      header: "Descripción",
-      cell: ({ row }) => (
-        <div className="max-w-[300px] truncate">
-          {row.getValue("description")}
-        </div>
       ),
     },
     {

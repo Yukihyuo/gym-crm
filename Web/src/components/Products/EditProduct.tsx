@@ -30,7 +30,6 @@ import { compressProductImage } from "@/lib/imageCompression";
 // Zod schema para validación
 const productSchema = z.object({
   name: z.string().min(1, "El nombre es requerido"),
-  description: z.string().min(1, "La descripción es requerida"),
   price: z.coerce.number().min(0, "El precio no puede ser negativo"),
   stock: z.coerce.number().min(0, "El stock no puede ser negativo"),
   category: z.string().min(1, "La categoría es requerida"),
@@ -52,7 +51,6 @@ const resolveProductImageUrl = (imageUrl: string | null | undefined) => {
 interface Product {
   _id: string;
   name: string;
-  description: string;
   price: number;
   stock: number;
   category: string;
@@ -141,7 +139,6 @@ export function EditProduct({
     if (product) {
       reset({
         name: product.name,
-        description: product.description,
         price: product.price,
         stock: product.stock,
         category: product.category,
@@ -165,7 +162,6 @@ export function EditProduct({
     try {
       const formData = new FormData();
       formData.append("name", data.name);
-      formData.append("description", data.description);
       formData.append("price", String(data.price));
       formData.append("stock", String(data.stock));
       formData.append("category", data.category);
@@ -408,24 +404,6 @@ export function EditProduct({
               </div>
             </div>
 
-            {/* Descripción */}
-            <div className="grid gap-2">
-              <Label htmlFor="description">
-                Descripción <span className="text-red-500">*</span>
-              </Label>
-              <textarea
-                id="description"
-                rows={2}
-                placeholder="Descripción del producto"
-                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                {...register("description")}
-              />
-              {errors.description && (
-                <span className="text-sm text-red-500">
-                  {errors.description.message}
-                </span>
-              )}
-            </div>
           </div>
 
           <DialogFooter className="border-t p-4">

@@ -17,14 +17,14 @@ const validateStoreExists = async (storeId) => {
 // Create - Crear un nuevo producto
 router.post('/create', uploadProductImage.single('image'), async (req, res) => {
   try {
-    const { storeId, name, description, price, stock, category, status } = req.body;
+    const { storeId, name, price, stock, category, status } = req.body;
     const parsedPrice = Number(price);
     const parsedStock = stock !== undefined ? Number(stock) : 0;
 
     // Validar campos requeridos
-    if (!storeId || !name || !description || price === undefined || !category || stock === undefined) {
+    if (!storeId || !name || price === undefined || !category || stock === undefined) {
       return res.status(400).json({
-        message: 'ID de tienda, nombre, descripción, precio, stock y categoría son requeridos'
+        message: 'ID de tienda, nombre, precio, stock y categoría son requeridos'
       });
     }
 
@@ -55,7 +55,6 @@ router.post('/create', uploadProductImage.single('image'), async (req, res) => {
     const newProduct = new Product({
       storeId,
       name,
-      description,
       price: parsedPrice,
       stock: parsedStock,
       category,
@@ -146,7 +145,7 @@ router.get('/:storeId/getById/:id', async (req, res) => {
 router.put('/:storeId/update/:id', uploadProductImage.single('image'), async (req, res) => {
   try {
     const { storeId, id } = req.params;
-    const { name, description, price, stock, category, status } = req.body;
+    const { name, price, stock, category, status } = req.body;
 
     const parsedPrice = price !== undefined ? Number(price) : undefined;
     const parsedStock = stock !== undefined ? Number(stock) : undefined;
@@ -193,7 +192,6 @@ router.put('/:storeId/update/:id', uploadProductImage.single('image'), async (re
 
     // Actualizar campos
     if (name !== undefined) product.name = name;
-    if (description !== undefined) product.description = description;
     if (parsedPrice !== undefined) product.price = parsedPrice;
     if (parsedStock !== undefined) product.stock = parsedStock;
     if (category !== undefined) product.category = category;

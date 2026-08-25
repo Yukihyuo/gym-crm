@@ -10,7 +10,6 @@ import { Label } from "../ui/label";
 interface Product {
   _id: string;
   name: string;
-  description: string;
   price: number;
   stock: number;
   category: string;
@@ -73,12 +72,6 @@ export function ViewProduct({ open, onOpenChange, product }: ViewProductProps) {
           <div className="grid gap-2">
             <Label className="text-muted-foreground text-sm">Nombre</Label>
             <p className="text-base font-medium">{product.name}</p>
-          </div>
-
-          {/* Descripción */}
-          <div className="grid gap-2">
-            <Label className="text-muted-foreground text-sm">Descripción</Label>
-            <p className="text-base">{product.description}</p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
