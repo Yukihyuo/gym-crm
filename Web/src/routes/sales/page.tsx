@@ -2,10 +2,11 @@ import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import axios from 'axios'
 import { toast } from 'react-toastify'
-import { Eye, MoreVertical } from 'lucide-react'
+import { CalendarDays, CreditCard, Eye, MoreVertical, ReceiptText, UserRound } from 'lucide-react'
 import { PageHeader } from '@/components/global/PageHeader'
 import { DetailsSaleModal } from '@/components/sales/DetailsSaleModal'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import {
   Table,
   TableBody,
@@ -24,6 +25,7 @@ import { API_ENDPOINTS } from '@/config/api'
 import { useAuthStore } from '@/store/authStore'
 import ProtectedModule from '@/components/global/ProtectedModule'
 import CashCutModal from '@/components/CashCut/CashCutModal'
+import { useIsMobile } from '@/hooks/use-mobile'
 
 interface Sale {
   _id: string
@@ -59,6 +61,7 @@ export default function SalesPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [detailsModalOpen, setDetailsModalOpen] = useState(false)
   const [selectedSaleId, setSelectedSaleId] = useState<string | null>(null)
+  const isMobile = useIsMobile()
   const activeStoreId = useAuthStore((state) => state.getActiveStoreId())
   const token = useAuthStore((state) => state.token)
 
@@ -122,11 +125,11 @@ export default function SalesPage() {
         description="Gestión de ventas y punto de venta"
       />
 
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col-reverse items-stretch justify-between gap-3 sm:flex-row sm:items-center">
         <div className="flex gap-2">
           {/* Aquí puedes agregar filtros más adelante */}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <CashCutModal />
           <ProtectedModule page="Sales" type="create" method="hide">
             <Button asChild>
@@ -136,14 +139,104 @@ export default function SalesPage() {
         </div>
       </div>
 
-      <div className="border rounded-lg">
+      <div className="rounded-lg border">
         {isLoading ? (
-          <div className="p-8 text-center text-muted-foreground">
+          <div className="p-8 text-center text-sm text-muted-foreground">
             Cargando ventas...
           </div>
         ) : sales.length === 0 ? (
-          <div className="p-8 text-center text-muted-foreground">
+          <div className="p-8 text-center text-sm text-muted-foreground">
             No hay ventas registradas
+          </div>
+        ) : isMobile ? (
+          <div className="space-y-3 border-0 p-3 sm:p-4">
+            {sales.map((sale) => (
+              <Card
+                key={sale._id}
+                className="space-y-4 rounded-xl border border-border/60 bg-card p-4 shadow-sm transition-shadow hover:shadow-md"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <ReceiptText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <h3 className="truncate text-base font-semibold text-card-foreground">
+                        Recibo {sale.receiptNumber}
+                      </h3>
+                    </div>
+                    <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <CalendarDays className="h-3.5 w-3.5 shrink-0" />
+                      {formatDate(sale.createdAt)}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <span
+                      className={`inline-flex items-center rounded-full px-2 py-1 text-[11px] font-medium ${getStatusBadge(
+                        sale.status
+                      )}`}
+                    >
+                      {sale.status === 'completed'
+                        ? 'Completada'
+                        : sale.status === 'cancelled'
+                          ? 'Cancelada'
+                          : 'Reembolsada'}
+                    </span>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" aria-label="Acciones de la venta">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <ProtectedModule page="Sales" type="read" method="hide">
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSelectedSaleId(sale._id)
+                              setDetailsModalOpen(true)
+                            }}
+                          >
+                            <Eye className="mr-2 h-4 w-4" />
+                            Ver detalles
+                          </DropdownMenuItem>
+                        </ProtectedModule>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 rounded-lg bg-muted/40 p-3">
+                  <div>
+                    <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Total</p>
+                    <p className="mt-1 text-xl font-semibold text-card-foreground">
+                      ${sale.totals.total.toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="border-l border-border/60 pl-3">
+                    <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Pago</p>
+                    <p className="mt-1 flex items-center gap-1.5 text-sm font-medium text-card-foreground">
+                      <CreditCard className="h-3.5 w-3.5 text-muted-foreground" />
+                      {getPaymentMethodLabel(sale.payment.method)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-2 border-t border-border/60 pt-3 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <UserRound className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">
+                      {sale.clientId?.profile?.names || sale.clientId?.firstName || 'Cliente no disponible'}{' '}
+                      {sale.clientId?.profile?.lastNames || sale.clientId?.lastName || ''}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <UserRound className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">
+                      {sale.userId?.profile?.names || sale.userId?.firstName || 'Vendedor no disponible'}{' '}
+                      {sale.userId?.profile?.lastNames || sale.userId?.lastName || ''}
+                    </span>
+                  </div>
+                </div>
+              </Card>
+            ))}
           </div>
         ) : (
           <Table>

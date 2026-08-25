@@ -13,6 +13,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { API_ENDPOINTS } from '@/config/api'
 import { useAuthStore } from '@/store/authStore'
+import { useIsMobile } from '@/hooks/use-mobile'
+import { Card } from '@/components/ui/card'
 import {
   flexRender,
   getCoreRowModel,
@@ -25,7 +27,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import axios from 'axios'
-import { CreditCard, MoreHorizontal, Trash2 } from 'lucide-react'
+import { CalendarClock, Check, CreditCard, MoreHorizontal, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'react-toastify'
 import ProtectedModule from '@/components/global/ProtectedModule'
@@ -82,6 +84,7 @@ export default function Page() {
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')
+  const isMobile = useIsMobile()
 
   const brandId = useAuthStore((state) => state.getBrandId())
   const token = useAuthStore((state) => state.token)
@@ -253,7 +256,7 @@ export default function Page() {
       />
 
       <div className="space-y-4">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-col-reverse items-stretch justify-between gap-3 sm:flex-row sm:items-center">
           <ProtectedModule page="Subscriptions" type="create" method="hide">
             <NewSubscriptionModal onSubscriptionCreated={asyncLoad} />
           </ProtectedModule>
@@ -261,70 +264,162 @@ export default function Page() {
             placeholder="Buscar membresías..."
             value={globalFilter ?? ''}
             onChange={(event) => setGlobalFilter(String(event.target.value))}
-            className="max-w-sm"
+            className="w-full sm:max-w-sm"
           />
         </div>
 
-        <div className="rounded-md border">
-          <table className="w-full">
-            <thead>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id} className="border-b bg-muted/50">
-                  {headerGroup.headers.map((header) => (
-                    <th
-                      key={header.id}
-                      className="h-12 px-4 text-left align-middle font-medium text-muted-foreground"
-                    >
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                    </th>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={columns.length} className="h-24 text-center">
-                    Cargando membresías...
-                  </td>
-                </tr>
-              ) : table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => (
-                  <tr
+        {isMobile ? (
+          <div className="space-y-3">
+            {loading ? (
+              <div className="rounded-xl border p-6 text-center text-sm text-muted-foreground">
+                Cargando membresías...
+              </div>
+            ) : table.getRowModel().rows?.length ? (
+              table.getRowModel().rows.map((row) => {
+                const subscription = row.original
+                const actionsCell = row.getVisibleCells().find((cell) => cell.column.id === 'actions')
+                const statusClass = subscription.status === 'active'
+                  ? 'bg-green-100 text-green-700'
+                  : subscription.status === 'inactive'
+                    ? 'bg-yellow-100 text-yellow-700'
+                    : 'bg-red-100 text-red-700'
+                const statusLabel = subscription.status === 'active'
+                  ? 'Activa'
+                  : subscription.status === 'inactive'
+                    ? 'Inactiva'
+                    : 'Archivada'
+                const namedBenefits = (subscription.benefits || [])
+                  .filter((benefit) => benefit.name)
+                  .slice(0, 3)
+
+                return (
+                  <Card
                     key={row.id}
-                    className="border-b transition-colors hover:bg-muted/50"
+                    className="space-y-4 rounded-xl border border-border/60 bg-card p-4 shadow-sm transition-shadow hover:shadow-md"
                   >
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="p-4 align-middle">
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
-                      </td>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h3 className="truncate text-base font-semibold text-card-foreground">
+                          {subscription.name}
+                        </h3>
+                        {subscription.description ? (
+                          <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
+                            {subscription.description}
+                          </p>
+                        ) : null}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <span className={`inline-flex items-center rounded-full px-2 py-1 text-[11px] font-medium ${statusClass}`}>
+                          {statusLabel}
+                        </span>
+                        {actionsCell ? flexRender(actionsCell.column.columnDef.cell, actionsCell.getContext()) : null}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 rounded-lg bg-muted/40 p-3">
+                      <div>
+                        <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Precio</p>
+                        <p className="mt-1 text-lg font-semibold text-card-foreground">{formatCurrency(subscription.price)}</p>
+                      </div>
+                      <div className="border-l border-border/60 pl-3">
+                        <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Duración</p>
+                        <div className="mt-1 flex items-center gap-1.5 text-sm font-medium text-card-foreground">
+                          <CalendarClock className="h-3.5 w-3.5 text-muted-foreground" />
+                          {formatDuration(subscription.duration)}
+                        </div>
+                      </div>
+                    </div>
+
+                    {namedBenefits.length ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-muted-foreground">Beneficios incluidos</span>
+                          <span className="text-[11px] text-muted-foreground">{subscription.benefits?.length || 0} total</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {namedBenefits.map((benefit, index) => (
+                            <span
+                              key={`${benefit.name}-${index}`}
+                              className="inline-flex max-w-full items-center gap-1 rounded-full bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+                            >
+                              <Check className="h-3 w-3 shrink-0" />
+                              <span className="truncate">{benefit.name}</span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </Card>
+                )
+              })
+            ) : (
+              <div className="rounded-xl border p-6 text-center text-sm text-muted-foreground">
+                No se encontraron membresías.
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="rounded-md border">
+            <table className="w-full">
+              <thead>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <tr key={headerGroup.id} className="border-b bg-muted/50">
+                    {headerGroup.headers.map((header) => (
+                      <th
+                        key={header.id}
+                        className="h-12 px-4 text-left align-middle font-medium text-muted-foreground"
+                      >
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                      </th>
                     ))}
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={columns.length} className="h-24 text-center">
-                    No se encontraron membresías.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={columns.length} className="h-24 text-center">
+                      Cargando membresías...
+                    </td>
+                  </tr>
+                ) : table.getRowModel().rows?.length ? (
+                  table.getRowModel().rows.map((row) => (
+                    <tr
+                      key={row.id}
+                      className="border-b transition-colors hover:bg-muted/50"
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <td key={cell.id} className="p-4 align-middle">
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={columns.length} className="h-24 text-center">
+                      No se encontraron membresías.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-        <div className="flex items-center justify-between px-2">
+        <div className="flex flex-col gap-2 px-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-sm text-muted-foreground">
             {table.getFilteredRowModel().rows.length} membresía(s) en total
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center justify-between gap-2 sm:space-x-2">
             <Button
               variant="outline"
               size="sm"

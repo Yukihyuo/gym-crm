@@ -26,7 +26,6 @@ const generateReceiptNumber = async () => {
 // POST - Crear una nueva venta
 router.post('/create', async (req, res) => {
   try {
-    console.log(req.body)
     const { storeId, clientId, items, payment, userId, totals } = req.body;
 
     // Validar que existan los datos requeridos
@@ -53,7 +52,6 @@ router.post('/create', async (req, res) => {
     // Validar que el usuario vendedor exista cuando se envía o se resuelve por configuración.
     let seller = null
     if (resolvedUserId) {
-      console.log(resolvedUserId)
       seller = await Staff.findById(resolvedUserId)
 
       if (!seller) {

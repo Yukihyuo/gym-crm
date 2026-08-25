@@ -10,13 +10,14 @@ import {
 	type SortingState,
 	useReactTable,
 } from '@tanstack/react-table'
-import { HandCoins } from 'lucide-react'
+import { CalendarDays, HandCoins, Tag, UserRound, WalletCards } from 'lucide-react'
 import { toast } from 'react-toastify'
 import { PageHeader } from '@/components/global/PageHeader'
 import ProtectedModule from '@/components/global/ProtectedModule'
 import NewExpenseModal from '@/components/Expenses/newExpenseModal'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { API_ENDPOINTS } from '@/config/api'
 import apiClient from '@/lib/axios'
 import {
@@ -24,6 +25,7 @@ import {
 	getExpenseSourceLabel,
 } from '@/lib/expenses'
 import { useAuthStore } from '@/store/authStore'
+import { useIsMobile } from '@/hooks/use-mobile'
 
 interface ExpenseUser {
 	_id?: string
@@ -84,6 +86,7 @@ export default function Page() {
 	const [sorting, setSorting] = useState<SortingState>([])
 	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
 	const [globalFilter, setGlobalFilter] = useState('')
+	const isMobile = useIsMobile()
 	const activeStore = useAuthStore((state) => state.getActiveStore())
 	const activeStoreId = useAuthStore((state) => state.getActiveStoreId())
 
@@ -195,7 +198,7 @@ export default function Page() {
 			/>
 
 			<div className="space-y-4">
-				<div className="flex items-center justify-between gap-2">
+				<div className="flex flex-col-reverse items-stretch justify-between gap-3 sm:flex-row sm:items-center">
 					<ProtectedModule page="Expenses" type="create" method="hide">
 						<NewExpenseModal onSuccess={asyncLoad} />
 					</ProtectedModule>
@@ -203,61 +206,122 @@ export default function Page() {
 						placeholder="Buscar gastos..."
 						value={globalFilter ?? ''}
 						onChange={(event) => setGlobalFilter(String(event.target.value))}
-						className="max-w-sm"
+						className="w-full sm:max-w-sm"
 					/>
 				</div>
 
-				<div className="rounded-md border">
-					<table className="w-full">
-						<thead>
-							{table.getHeaderGroups().map((headerGroup) => (
-								<tr key={headerGroup.id} className="border-b bg-muted/50">
-									{headerGroup.headers.map((header) => (
-										<th
-											key={header.id}
-											className="h-12 px-4 text-left align-middle font-medium text-muted-foreground"
-										>
-											{header.isPlaceholder
-												? null
-												: flexRender(header.column.columnDef.header, header.getContext())}
-										</th>
-									))}
-								</tr>
-							))}
-						</thead>
-						<tbody>
-							{loading ? (
-								<tr>
-									<td colSpan={columns.length} className="h-24 text-center">
-										Cargando gastos...
-									</td>
-								</tr>
-							) : table.getRowModel().rows?.length ? (
-								table.getRowModel().rows.map((row) => (
-									<tr key={row.id} className="border-b transition-colors hover:bg-muted/50">
-										{row.getVisibleCells().map((cell) => (
-											<td key={cell.id} className="p-4 align-middle">
-												{flexRender(cell.column.columnDef.cell, cell.getContext())}
-											</td>
+				{isMobile ? (
+					<div className="space-y-3">
+						{loading ? (
+							<div className="rounded-xl border p-6 text-center text-sm text-muted-foreground">
+								Cargando gastos...
+							</div>
+						) : table.getRowModel().rows?.length ? (
+							table.getRowModel().rows.map((row) => {
+								const expense = row.original
+
+								return (
+									<Card
+										key={row.id}
+										className="space-y-4 rounded-xl border border-border/60 bg-card p-4 shadow-sm transition-shadow hover:shadow-md"
+									>
+										<div className="flex items-start justify-between gap-3">
+											<div className="min-w-0">
+												<div className="flex items-center gap-2">
+													<Tag className="h-4 w-4 shrink-0 text-muted-foreground" />
+													<h3 className="truncate text-base font-semibold text-card-foreground">
+														{getExpenseCategoryLabel(expense.category)}
+													</h3>
+												</div>
+												<p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+													<CalendarDays className="h-3.5 w-3.5 shrink-0" />
+													{formatDate(expense.date || expense.createdAt)}
+												</p>
+											</div>
+											<div className="shrink-0 text-right">
+												<p className="text-lg font-semibold text-card-foreground">{formatCurrency(expense.amount)}</p>
+												<p className="text-[11px] text-muted-foreground">{getExpenseSourceLabel(expense.source)}</p>
+											</div>
+										</div>
+
+										{expense.description ? (
+											<p className="line-clamp-2 border-t border-border/60 pt-3 text-sm text-muted-foreground">
+												{expense.description}
+											</p>
+										) : null}
+
+										<div className="flex items-center justify-between gap-3 border-t border-border/60 pt-3 text-xs text-muted-foreground">
+											<div className="flex min-w-0 items-center gap-2">
+												<UserRound className="h-3.5 w-3.5 shrink-0" />
+												<span className="truncate">{getUserLabel(expense.userId)}</span>
+											</div>
+											<div className="flex shrink-0 items-center gap-1.5">
+												<WalletCards className="h-3.5 w-3.5" />
+												<span>{getExpenseSourceLabel(expense.source)}</span>
+											</div>
+										</div>
+									</Card>
+								)
+							})
+						) : (
+							<div className="rounded-xl border p-6 text-center text-sm text-muted-foreground">
+								No se encontraron gastos para esta tienda.
+							</div>
+						)}
+					</div>
+				) : (
+					<div className="rounded-md border">
+						<table className="w-full">
+							<thead>
+								{table.getHeaderGroups().map((headerGroup) => (
+									<tr key={headerGroup.id} className="border-b bg-muted/50">
+										{headerGroup.headers.map((header) => (
+											<th
+												key={header.id}
+												className="h-12 px-4 text-left align-middle font-medium text-muted-foreground"
+											>
+												{header.isPlaceholder
+													? null
+													: flexRender(header.column.columnDef.header, header.getContext())}
+											</th>
 										))}
 									</tr>
-								))
-							) : (
-								<tr>
-									<td colSpan={columns.length} className="h-24 text-center">
-										No se encontraron gastos para esta tienda.
-									</td>
-								</tr>
-							)}
-						</tbody>
-					</table>
-				</div>
+								))}
+							</thead>
+							<tbody>
+								{loading ? (
+									<tr>
+										<td colSpan={columns.length} className="h-24 text-center">
+											Cargando gastos...
+										</td>
+									</tr>
+								) : table.getRowModel().rows?.length ? (
+									table.getRowModel().rows.map((row) => (
+										<tr key={row.id} className="border-b transition-colors hover:bg-muted/50">
+											{row.getVisibleCells().map((cell) => (
+												<td key={cell.id} className="p-4 align-middle">
+													{flexRender(cell.column.columnDef.cell, cell.getContext())}
+												</td>
+											))}
+										</tr>
+									))
+								) : (
+									<tr>
+										<td colSpan={columns.length} className="h-24 text-center">
+											No se encontraron gastos para esta tienda.
+										</td>
+									</tr>
+								)}
+							</tbody>
+						</table>
+					</div>
+				)}
 
-				<div className="flex items-center justify-between px-2">
+				<div className="flex flex-col gap-2 px-2 sm:flex-row sm:items-center sm:justify-between">
 					<div className="text-sm text-muted-foreground">
 						{table.getFilteredRowModel().rows.length} gasto(s) en total
 					</div>
-					<div className="flex items-center space-x-2">
+					<div className="flex items-center justify-between gap-2 sm:space-x-2">
 						<Button
 							variant="outline"
 							size="sm"

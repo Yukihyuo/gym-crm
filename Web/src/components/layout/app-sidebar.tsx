@@ -3,6 +3,7 @@
 import * as React from "react"
 import { useMemo } from "react"
 import {
+  Box,
   Building2,
   Calendar,
   ChevronsUpDown,
@@ -94,7 +95,7 @@ const navigationGroups: NavGroup[] = [
     items: [{ title: "Inicio", url: "/", icon: LayoutDashboard }],
   },
   {
-    label: "OPERACION",
+    label: "OPERACIÓN",
     items: [
       { title: "Clientes", url: "/clients", icon: Users },
       { title: "Suscripciones", url: "/subscriptions", icon: CreditCard },
@@ -105,18 +106,19 @@ const navigationGroups: NavGroup[] = [
   {
     label: "VENTAS Y FINANZAS",
     items: [
-      { title: "Ventas y Facturacion", url: "/sales", icon: ShoppingCart },
+      { title: "Ventas y Facturación", url: "/sales", icon: ShoppingCart },
       { title: "Cortes de Caja", url: "/cash-cuts", icon: Wallet },
+      { title: "Inventario", url: "/inventory", icon: Box },
       { title: "Gastos", url: "/expenses", icon: TrendingDown },
     ],
   },
   {
-    label: "CONFIGURACION Y SISTEMA",
+    label: "CONFIGURACIÓN Y SISTEMA",
     items: [
       { title: "Staff", url: "/staff", icon: UserCheck },
       { title: "Tiendas / Sedes", url: "/stores", icon: Building2 },
       { title: "Roles y Permisos", url: "/roles", icon: ShieldCheck },
-      { title: "Paginas", url: "/pages", icon: FileText },
+      { title: "Páginas", url: "/pages", icon: FileText },
     ],
   },
 ]

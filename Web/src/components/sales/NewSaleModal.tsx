@@ -117,8 +117,6 @@ export function NewSaleModal({ onSuccess }: NewSaleModalProps) {
   const defaultSaleUserId = useBrandConfigStore((state) => state.config?.userSaleDefault ?? null)
   const navigate = useNavigate()
 
-  const [selectedSellerId, setSelectedSellerId] = useState<string>("")
-
   const fetchProducts = useCallback(async () => {
     if (!activeStoreId) {
       setProducts([])
@@ -147,9 +145,8 @@ export function NewSaleModal({ onSuccess }: NewSaleModalProps) {
   }, [clientSearch])
 
   const resetForm = useCallback(() => {
-    setSelectedSellerId(defaultSaleUserId ?? user?.id ?? "")
-    setSelectedClientId("")
-    setSelectedClientLabel("")
+    setSelectedClientId(requireSaleUser ? "" : defaultSaleUserId ?? "")
+    setSelectedClientLabel(requireSaleUser ? "" : defaultSaleUserId ? "Cliente predeterminado" : "")
     setClientSearch("")
     setDebouncedClientSearch("")
     setClients([])
@@ -162,7 +159,7 @@ export function NewSaleModal({ onSuccess }: NewSaleModalProps) {
     setDiscount("0")
     setDiscountType("amount")
     setTax("0")
-  }, [defaultSaleUserId, user?.id])
+  }, [defaultSaleUserId, requireSaleUser])
 
   useEffect(() => {
     fetchProducts()
@@ -317,7 +314,10 @@ export function NewSaleModal({ onSuccess }: NewSaleModalProps) {
   const paidAmount = parseFloat(amountPaid) || 0
   const change = paymentMethod === "cash" ? paidAmount - total : 0
   const totalItems = saleItems.reduce((sum, item) => sum + item.quantity, 0)
-  const canSubmitSale = !isLoading && Boolean(selectedClientId) && saleItems.length > 0
+  const canSubmitSale =
+    !isLoading &&
+    Boolean(selectedClientId) &&
+    saleItems.length > 0
 
   const filteredProducts = useMemo(() => {
     const normalizedSearch = productSearch.trim().toLowerCase()
@@ -376,7 +376,7 @@ export function NewSaleModal({ onSuccess }: NewSaleModalProps) {
 
     const resolvedSellerId = user.id
 
-    if (requireSaleUser && !resolvedSellerId) {
+    if (!resolvedSellerId) {
       toast.error("No se pudo identificar al vendedor")
       return
     }
@@ -460,62 +460,66 @@ export function NewSaleModal({ onSuccess }: NewSaleModalProps) {
             </Button>
           </div>
           <div className="mt-3 hidden space-y-2 text-left lg:block">
-            <Label htmlFor="client">Cliente *</Label>
-            <Popover modal={false} open={clientComboboxOpen} onOpenChange={setClientComboboxOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  id="client"
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={clientComboboxOpen}
-                  className="w-full justify-between"
-                  disabled={isLoading}
-                >
-                  {selectedClientLabel || "Busca y selecciona un cliente"}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" sideOffset={6} avoidCollisions>
-                <Command shouldFilter={false}>
-                  <CommandInput
-                    placeholder="Buscar por nombre, teléfono, username o ID..."
-                    value={clientSearch}
-                    onValueChange={setClientSearch}
-                  />
-                  <CommandList className="max-h-64">
-                    {!debouncedClientSearch ? (
-                      <div className="py-6 text-center text-sm text-muted-foreground">Escribe para buscar clientes</div>
-                    ) : null}
-                    {isLoadingClients ? (
-                      <div className="py-6 text-center text-sm text-muted-foreground">Buscando clientes...</div>
-                    ) : null}
-                    {!isLoadingClients && debouncedClientSearch && clients.length === 0 ? (
-                      <CommandEmpty>No se encontraron clientes.</CommandEmpty>
-                    ) : null}
-                    {!isLoadingClients && clients.length > 0 ? (
-                      <CommandGroup>
-                        {clients.map((client) => (
-                          <CommandItem key={client.value} value={client.value} onSelect={() => handleSelectClient(client)}>
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                selectedClientId === client.value ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            <div className="flex min-w-0 flex-col">
-                              <span className="truncate">{client.label}</span>
-                              {client.subtitle ? (
-                                <span className="truncate text-xs text-muted-foreground">{client.subtitle}</span>
-                              ) : null}
-                            </div>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    ) : null}
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
+            {requireSaleUser ? (
+              <>
+                <Label htmlFor="client">Cliente *</Label>
+                <Popover modal={false} open={clientComboboxOpen} onOpenChange={setClientComboboxOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="client"
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={clientComboboxOpen}
+                      className="w-full justify-between"
+                      disabled={isLoading}
+                    >
+                      {selectedClientLabel || "Busca y selecciona un cliente"}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" sideOffset={6} avoidCollisions>
+                    <Command shouldFilter={false}>
+                      <CommandInput
+                        placeholder="Buscar por nombre, teléfono, username o ID..."
+                        value={clientSearch}
+                        onValueChange={setClientSearch}
+                      />
+                      <CommandList className="max-h-64">
+                        {!debouncedClientSearch ? (
+                          <div className="py-6 text-center text-sm text-muted-foreground">Escribe para buscar clientes</div>
+                        ) : null}
+                        {isLoadingClients ? (
+                          <div className="py-6 text-center text-sm text-muted-foreground">Buscando clientes...</div>
+                        ) : null}
+                        {!isLoadingClients && debouncedClientSearch && clients.length === 0 ? (
+                          <CommandEmpty>No se encontraron clientes.</CommandEmpty>
+                        ) : null}
+                        {!isLoadingClients && clients.length > 0 ? (
+                          <CommandGroup>
+                            {clients.map((client) => (
+                              <CommandItem key={client.value} value={client.value} onSelect={() => handleSelectClient(client)}>
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    selectedClientId === client.value ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                <div className="flex min-w-0 flex-col">
+                                  <span className="truncate">{client.label}</span>
+                                  {client.subtitle ? (
+                                    <span className="truncate text-xs text-muted-foreground">{client.subtitle}</span>
+                                  ) : null}
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        ) : null}
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </>
+            ) : null}
           </div>
         </header>
 
@@ -833,7 +837,7 @@ export function NewSaleModal({ onSuccess }: NewSaleModalProps) {
                 <DrawerDescription>Confirma los productos y completa el pago.</DrawerDescription>
               </DrawerHeader>
               <div className="min-h-0 overflow-y-auto px-4">
-                <div className="space-y-2">
+                {requireSaleUser ? <div className="space-y-2">
                   <Label htmlFor="mobile-client">Cliente *</Label>
                   <Input
                     id="mobile-client"
@@ -876,7 +880,7 @@ export function NewSaleModal({ onSuccess }: NewSaleModalProps) {
                       ) : null}
                     </div>
                   ) : null}
-                </div>
+                </div> : null}
 
                 <div className="mt-4 space-y-2">
                   <CardTitle className="text-base">Carrito</CardTitle>

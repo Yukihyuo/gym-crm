@@ -2,7 +2,7 @@ import { PageHeader } from '@/components/global/PageHeader'
 import { Button } from '@/components/ui/button'
 import { API_ENDPOINTS } from '@/config/api'
 import axios from 'axios'
-import { User, MoreHorizontal, Trash2 } from 'lucide-react'
+import { User, MoreHorizontal, Trash2, Mail, Phone, ShieldCheck } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'react-toastify'
 import {
@@ -17,6 +17,9 @@ import {
   type ColumnFiltersState,
 } from '@tanstack/react-table'
 import { Input } from '@/components/ui/input'
+import { Card } from '@/components/ui/card'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { useIsMobile } from '@/hooks/use-mobile'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,6 +43,11 @@ interface Profile {
   phone?: string
 }
 
+interface Assignment {
+  id?: string
+  roleName: string
+}
+
 interface UserData {
   _id: string
   username: string
@@ -47,6 +55,7 @@ interface UserData {
   profile: Profile
   fingerprint: string | null
   status: boolean
+  assignments?: Assignment[]
   createdAt?: string
 }
 
@@ -56,6 +65,7 @@ export default function Page() {
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')
+  const isMobile = useIsMobile()
 
   const brandId = useAuthStore((state) => state.getBrandId())
 
@@ -215,7 +225,7 @@ export default function Page() {
 
       <div className="space-y-4">
         {/* Barra de búsqueda */}
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-col-reverse items-stretch justify-between gap-3 sm:flex-row sm:items-center">
           <ProtectedModule page="Clients" type="create" method="hide">
             <NewClientModal onSuccess={asyncLoad} />
           </ProtectedModule>
@@ -223,72 +233,148 @@ export default function Page() {
             placeholder="Buscar clientes..."
             value={globalFilter ?? ""}
             onChange={(event) => setGlobalFilter(String(event.target.value))}
-            className="max-w-sm"
+            className="w-full sm:max-w-sm"
           />
         </div>
 
-        {/* Tabla */}
-        <div className="rounded-md border">
-          <table className="w-full">
-            <thead>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id} className="border-b bg-muted/50">
-                  {headerGroup.headers.map((header) => (
-                    <th
-                      key={header.id}
-                      className="h-12 px-4 text-left align-middle font-medium text-muted-foreground"
-                    >
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                    </th>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={columns.length} className="h-24 text-center">
-                    Cargando usuarios...
-                  </td>
-                </tr>
-              ) : table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => (
-                  <tr
-                    key={row.id}
-                    className="border-b transition-colors hover:bg-muted/50"
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="p-4 align-middle">
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
-                      </td>
+        {/* Datos */}
+        {isMobile ? (
+          <div className="space-y-3">
+            {loading ? (
+              <div className="rounded-md border p-6 text-center text-sm text-muted-foreground">
+                Cargando usuarios...
+              </div>
+            ) : table.getRowModel().rows?.length ? (
+              table.getRowModel().rows.map((row) => {
+                const actionsCell = row.getVisibleCells().find((cell) => cell.column.id === "actions")
+
+                return (
+                  <Card key={row.id} className="bg-card rounded-xl border border-border/60 shadow-sm p-4 space-y-3 hover:shadow-md transition-shadow">
+                    <div className="flex items-start gap-3">
+                      <Avatar className="h-10 w-10 shrink-0">
+                        <AvatarFallback>
+                          {row.original.profile.names?.[0]?.toUpperCase() || <User className="h-4 w-4" />}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-semibold text-base text-card-foreground">
+                          {row.original.profile.names} {row.original.profile.lastNames}
+                        </div>
+                        <div className="truncate text-xs text-muted-foreground">@{row.original.username}</div>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${row.original.status
+                            ? "bg-green-100 text-green-700"
+                            : "bg-red-100 text-red-700"
+                            }`}
+                        >
+                          {row.original.status ? "Activo" : "Inactivo"}
+                        </span>
+                        {actionsCell ? flexRender(actionsCell.column.columnDef.cell, actionsCell.getContext()) : null}
+                      </div>
+                    </div>
+                    <div className="space-y-2 border-t border-border/60 pt-3">
+                      {row.original.email ? (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Mail className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                          <span className="break-all">{row.original.email}</span>
+                        </div>
+                      ) : null}
+                      {row.original.profile.phone ? (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Phone className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                          <span>{row.original.profile.phone}</span>
+                        </div>
+                      ) : null}
+                      {row.original.assignments?.length ? (
+                        <div className="flex items-start gap-2 text-xs text-muted-foreground">
+                          <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                          <div className="flex flex-wrap gap-1">
+                            {row.original.assignments.map((assignment) => (
+                              <span
+                                key={assignment.id || assignment.roleName}
+                                className="inline-flex items-center rounded-full bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+                              >
+                                {assignment.roleName}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  </Card>
+                )
+              })
+            ) : (
+              <div className="rounded-md border p-6 text-center text-sm text-muted-foreground">
+                No se encontraron usuarios.
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="rounded-md border">
+            <table className="w-full">
+              <thead>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <tr key={headerGroup.id} className="border-b bg-muted/50">
+                    {headerGroup.headers.map((header) => (
+                      <th
+                        key={header.id}
+                        className="h-12 px-4 text-left align-middle font-medium text-muted-foreground"
+                      >
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                      </th>
                     ))}
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={columns.length} className="h-24 text-center">
-                    No se encontraron usuarios.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={columns.length} className="h-24 text-center">
+                      Cargando usuarios...
+                    </td>
+                  </tr>
+                ) : table.getRowModel().rows?.length ? (
+                  table.getRowModel().rows.map((row) => (
+                    <tr
+                      key={row.id}
+                      className="border-b transition-colors hover:bg-muted/50"
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <td key={cell.id} className="p-4 align-middle">
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={columns.length} className="h-24 text-center">
+                      No se encontraron usuarios.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* Paginación */}
-        <div className="flex items-center justify-between px-2">
+        <div className="flex flex-col gap-2 px-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-sm text-muted-foreground">
             {table.getFilteredRowModel().rows.length} usuario(s) en total
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center justify-between gap-2 sm:space-x-2">
             <Button
               variant="outline"
               size="sm"

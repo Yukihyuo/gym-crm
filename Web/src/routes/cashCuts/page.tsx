@@ -10,7 +10,7 @@ import {
   type SortingState,
   useReactTable,
 } from '@tanstack/react-table'
-import { Wallet, MoreHorizontal } from 'lucide-react'
+import { CalendarClock, CircleDollarSign, Wallet, MoreHorizontal, UserRound } from 'lucide-react'
 import { toast } from 'react-toastify'
 import { PageHeader } from '@/components/global/PageHeader'
 import CashCutModal from '@/components/CashCut/CashCutModal'
@@ -18,6 +18,7 @@ import DetailsCashCutModal from '@/components/CashCut/detailsCashCutModal'
 import ProtectedModule from '@/components/global/ProtectedModule'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,6 +28,7 @@ import {
 import { API_ENDPOINTS } from '@/config/api'
 import apiClient from '@/lib/axios'
 import { useAuthStore } from '@/store/authStore'
+import { useIsMobile } from '@/hooks/use-mobile'
 
 type CashCutStatus = 'balanced' | 'shortage' | 'surplus' | 'pending' | 'incomplete'
 
@@ -99,6 +101,7 @@ export default function Page() {
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')
+  const isMobile = useIsMobile()
   const activeStore = useAuthStore((state) => state.getActiveStore())
 
   const asyncLoad = useCallback(async () => {
@@ -258,7 +261,7 @@ export default function Page() {
       />
 
       <div className="space-y-4">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-col-reverse items-stretch justify-between gap-3 sm:flex-row sm:items-center">
           <ProtectedModule page="CashCuts" type="create" method="hide">
             <CashCutModal />
           </ProtectedModule>
@@ -266,61 +269,147 @@ export default function Page() {
             placeholder="Buscar cortes..."
             value={globalFilter ?? ''}
             onChange={(event) => setGlobalFilter(String(event.target.value))}
-            className="max-w-sm"
+            className="w-full sm:max-w-sm"
           />
         </div>
 
-        <div className="rounded-md border">
-          <table className="w-full">
-            <thead>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id} className="border-b bg-muted/50">
-                  {headerGroup.headers.map((header) => (
-                    <th
-                      key={header.id}
-                      className="h-12 px-4 text-left align-middle font-medium text-muted-foreground"
-                    >
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(header.column.columnDef.header, header.getContext())}
-                    </th>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={columns.length} className="h-24 text-center">
-                    Cargando cortes de caja...
-                  </td>
-                </tr>
-              ) : table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => (
-                  <tr key={row.id} className="border-b transition-colors hover:bg-muted/50">
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="p-4 align-middle">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
+        {isMobile ? (
+          <div className="space-y-3">
+            {loading ? (
+              <div className="rounded-xl border p-6 text-center text-sm text-muted-foreground">
+                Cargando cortes de caja...
+              </div>
+            ) : table.getRowModel().rows?.length ? (
+              table.getRowModel().rows.map((row) => {
+                const cashCut = row.original
+                const actionsCell = row.getVisibleCells().find((cell) => cell.column.id === 'actions')
+                const differenceClass = cashCut.cashDifference === 0
+                  ? 'text-green-700'
+                  : cashCut.cashDifference < 0
+                    ? 'text-red-700'
+                    : 'text-blue-700'
+
+                return (
+                  <Card
+                    key={row.id}
+                    className="space-y-4 rounded-xl border border-border/60 bg-card p-4 shadow-sm transition-shadow hover:shadow-md"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <UserRound className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <h3 className="truncate text-base font-semibold text-card-foreground">
+                            {cashCut.staffId?.username || 'Usuario no disponible'}
+                          </h3>
+                        </div>
+                        {cashCut.staffId?.email ? (
+                          <p className="mt-1 truncate text-xs text-muted-foreground">{cashCut.staffId.email}</p>
+                        ) : null}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <span className={`inline-flex items-center rounded-full px-2 py-1 text-[11px] font-medium ${getStatusClass(cashCut.status)}`}>
+                          {getStatusLabel(cashCut.status)}
+                        </span>
+                        {actionsCell ? flexRender(actionsCell.column.columnDef.cell, actionsCell.getContext()) : null}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 rounded-lg bg-muted/40 p-3">
+                      <div>
+                        <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Fondo inicial</p>
+                        <p className="mt-1 text-lg font-semibold text-card-foreground">{formatCurrency(cashCut.initialCash)}</p>
+                      </div>
+                      <div className="border-l border-border/60 pl-3">
+                        <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Diferencia</p>
+                        <p className={`mt-1 text-lg font-semibold ${differenceClass}`}>{formatCurrency(cashCut.cashDifference)}</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 border-t border-border/60 pt-3 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <CalendarClock className="h-3.5 w-3.5 shrink-0" />
+                        <span>Apertura: {formatDate(cashCut.openingDate)}</span>
+                      </div>
+                      {cashCut.closingDate ? (
+                        <div className="flex items-center gap-2">
+                          <CalendarClock className="h-3.5 w-3.5 shrink-0" />
+                          <span>Cierre: {formatDate(cashCut.closingDate)}</span>
+                        </div>
+                      ) : null}
+                      <div className="flex items-center gap-2">
+                        <CircleDollarSign className="h-3.5 w-3.5 shrink-0" />
+                        <span>
+                          Efectivo reportado:{' '}
+                          {cashCut.status === 'pending' || cashCut.status === 'incomplete'
+                            ? 'Pendiente de reporte'
+                            : cashCut.reportedTotals?.cashInHand === undefined
+                              ? '-'
+                              : formatCurrency(cashCut.reportedTotals.cashInHand)}
+                        </span>
+                      </div>
+                    </div>
+                  </Card>
+                )
+              })
+            ) : (
+              <div className="rounded-xl border p-6 text-center text-sm text-muted-foreground">
+                No se encontraron cortes de caja para esta tienda.
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="rounded-md border">
+            <table className="w-full">
+              <thead>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <tr key={headerGroup.id} className="border-b bg-muted/50">
+                    {headerGroup.headers.map((header) => (
+                      <th
+                        key={header.id}
+                        className="h-12 px-4 text-left align-middle font-medium text-muted-foreground"
+                      >
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(header.column.columnDef.header, header.getContext())}
+                      </th>
                     ))}
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={columns.length} className="h-24 text-center">
-                    No se encontraron cortes de caja para esta tienda.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={columns.length} className="h-24 text-center">
+                      Cargando cortes de caja...
+                    </td>
+                  </tr>
+                ) : table.getRowModel().rows?.length ? (
+                  table.getRowModel().rows.map((row) => (
+                    <tr key={row.id} className="border-b transition-colors hover:bg-muted/50">
+                      {row.getVisibleCells().map((cell) => (
+                        <td key={cell.id} className="p-4 align-middle">
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={columns.length} className="h-24 text-center">
+                      No se encontraron cortes de caja para esta tienda.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-        <div className="flex items-center justify-between px-2">
+        <div className="flex flex-col gap-2 px-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-sm text-muted-foreground">
             {table.getFilteredRowModel().rows.length} corte(s) en total
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center justify-between gap-2 sm:space-x-2">
             <Button
               variant="outline"
               size="sm"
