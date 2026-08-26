@@ -107,6 +107,7 @@ const navigationGroups: NavGroup[] = [
     label: "VENTAS Y FINANZAS",
     items: [
       { title: "Ventas y Facturación", url: "/sales", icon: ShoppingCart },
+      { title: "Asignación de Suscripciones", url: "/subscriptions-assignment", icon: CreditCard },
       { title: "Cortes de Caja", url: "/cash-cuts", icon: Wallet },
       { title: "Inventario", url: "/inventory", icon: Box },
       { title: "Gastos", url: "/expenses", icon: TrendingDown },
