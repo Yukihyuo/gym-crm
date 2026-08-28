@@ -163,7 +163,7 @@ router.post('/close/:id', async (req, res) => {
     const cashCut = await CashCut.findById(id).populate('expensesIds')
 
     if (!cashCut) return res.status(404).json({ message: 'Corte de caja no encontrado' })
-    if (!isOpenCashCut(cashCut.status)) return res.status(400).json({ message: 'El corte de caja ya fue cerrado' })
+    // if (!isOpenCashCut(cashCut.status)) return res.status(400).json({ message: 'El corte de caja ya fue cerrado' })
 
     // 1. Separar y sumar gastos por fuente
     const expenses = cashCut.expensesIds || []
