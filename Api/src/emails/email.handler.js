@@ -5,14 +5,13 @@ import { transporter } from "../config/email.config.js"
 
 import { WelcomeEmail } from "./mails/WelcomeEmail.js"
 
-export const sendWelcomeEmail = async (client, brand) => {
+export const sendWelcomeEmail = async (client, brand, defaultPassword = client?.username) => {
   try {
     const clientName = [client?.profile?.names, client?.profile?.lastNames]
       .filter(Boolean)
       .join(" ") || client?.username
 
     const username = client?.username
-    const defaultPassword = client?.username
 
     const emailHtml = await render(
       React.createElement(WelcomeEmail, {

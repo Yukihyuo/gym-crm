@@ -13,11 +13,13 @@ import { Label } from "@/components/ui/label";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { useCallback, useEffect } from "react";
-import { Check, ChevronsUpDown } from "lucide-react"
+import { Banknote, Check, ChevronsUpDown, CreditCard, ArrowRightLeft, TriangleAlert } from "lucide-react"
 import { API_ENDPOINTS } from "@/config/api"
 import { useAuthStore } from "@/store/authStore"
 import { useBrandConfigStore } from "@/store/brandConfigStore"
 import { useCashCutStore } from "@/store/cashCutStore"
+import { useCashGate } from "@/components/CashCut/useCashGate"
+import { resolveCashCutConflict } from "@/components/CashCut/cashCutConflict"
 import {
   Command,
   CommandEmpty,
@@ -37,6 +39,15 @@ interface BaseDocumentProps {
   onSubmit?: SubmitHandler;
   onAssignmentCreated?: () => void;
   trigger?: React.ReactNode;
+  /** Si se define, el modal se controla desde fuera (sin trigger propio salvo que se pase `trigger`). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** Cliente fijo: se muestra como dato de solo lectura en lugar del buscador. */
+  presetClient?: { value: string; label: string };
+  presetPlanId?: string | null;
+  title?: string;
+  description?: string;
+  submitLabel?: string;
 }
 
 interface ClientData {
@@ -44,6 +55,12 @@ interface ClientData {
   label: string;
   subtitle?: string;
 }
+
+const PAYMENT_METHODS = [
+  { value: "cash", label: "Efectivo", Icon: Banknote },
+  { value: "card", label: "Tarjeta", Icon: CreditCard },
+  { value: "transfer", label: "Transferencia", Icon: ArrowRightLeft },
+] as const
 
 interface SubscriptionData {
   _id: string;
@@ -91,8 +108,27 @@ const formatCurrency = (price?: SubscriptionData['price']) => {
   }).format(amount)
 }
 
-export default function NewSubscriptionsAssignment({ onSubmit, onAssignmentCreated, trigger }: BaseDocumentProps) {
-  const [open, setOpen] = useState(false);
+export default function NewSubscriptionsAssignment({
+  onSubmit,
+  onAssignmentCreated,
+  trigger,
+  open: openProp,
+  onOpenChange,
+  presetClient,
+  presetPlanId,
+  title = "Nueva Asignación de Membresía",
+  description = "Selecciona cliente y membresía para crear la asignación",
+  submitLabel = "Asignar",
+}: BaseDocumentProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = openProp !== undefined
+  const open = isControlled ? openProp : internalOpen
+  const setOpen = (nextOpen: boolean) => {
+    if (!isControlled) {
+      setInternalOpen(nextOpen)
+    }
+    onOpenChange?.(nextOpen)
+  }
   const [loading, setLoading] = useState(false)
   const [loadingClients, setLoadingClients] = useState(false)
   const [clients, setClients] = useState<ClientData[]>([])
@@ -111,19 +147,9 @@ export default function NewSubscriptionsAssignment({ onSubmit, onAssignmentCreat
   const token = useAuthStore((state) => state.token)
   const requireCashClosing = useBrandConfigStore((state) => state.config?.requireCashClosing ?? false)
   const cashCutId = useCashCutStore((state) => state.cashCutId)
-
-  const canOpenAssignmentModal = useCallback(() => {
-    if (!requireCashClosing) {
-      return true
-    }
-
-    if (!cashCutId) {
-      toast.error("Debes abrir la caja antes de asignar una membresía")
-      return false
-    }
-
-    return true
-  }, [cashCutId, requireCashClosing])
+  const { requiresCash: cashBlocked, ensureCash, cashGateDialog } = useCashGate()
+  const presetClientId = presetClient?.value
+  const presetClientLabel = presetClient?.label
 
   const loadSubscriptions = useCallback(async () => {
     if (!brandId) return;
@@ -154,11 +180,18 @@ export default function NewSubscriptionsAssignment({ onSubmit, onAssignmentCreat
       setClientSearch("")
       setDebouncedClientSearch("")
       setClients([])
+      if (presetClientId) {
+        setClientId(presetClientId)
+        setSelectedClientLabel(presetClientLabel ?? "")
+      }
+      if (presetPlanId) {
+        setPlanId(presetPlanId)
+      }
       loadSubscriptions()
     } else {
       setClientComboboxOpen(false)
     }
-  }, [open, loadSubscriptions])
+  }, [open, loadSubscriptions, presetClientId, presetClientLabel, presetPlanId])
 
   useEffect(() => {
     if (!open || !brandId) {
@@ -206,6 +239,11 @@ export default function NewSubscriptionsAssignment({ onSubmit, onAssignmentCreat
       isCancelled = true
     }
   }, [open, brandId, token, debouncedClientSearch])
+
+  // El plan que ya tenía el cliente va primero para renovar con un solo toque.
+  const orderedSubscriptions = presetPlanId
+    ? [...subscriptions].sort((a, b) => Number(b._id === presetPlanId) - Number(a._id === presetPlanId))
+    : subscriptions
 
   const handleSelectClient = (client: ClientData) => {
     setClientId(client.value)
@@ -284,6 +322,12 @@ export default function NewSubscriptionsAssignment({ onSubmit, onAssignmentCreat
     } catch (error: any) {
       console.error("Error al asignar suscripción:", error)
       toast.error(error.response?.data?.message || "Error al asignar suscripción")
+
+      // Caja expirada o de otra sucursal: se vuelve a pedir abrirla y se retoma la asignación.
+      if (await resolveCashCutConflict(error) && !useCashCutStore.getState().cashCutId) {
+        setOpen(false)
+        ensureCash(() => setOpen(true))
+      }
     } finally {
       setLoading(false)
     }
@@ -293,27 +337,42 @@ export default function NewSubscriptionsAssignment({ onSubmit, onAssignmentCreat
     <Dialog
       open={open}
       onOpenChange={(nextOpen) => {
-        if (nextOpen && !canOpenAssignmentModal()) {
+        if (nextOpen) {
+          ensureCash(() => setOpen(true))
           return
         }
 
-        setOpen(nextOpen)
+        setOpen(false)
       }}
     >
-      <DialogTrigger asChild>
-        {trigger ?? <Button variant="default">Asignar Membresía</Button>}
-      </DialogTrigger>
+      {!isControlled || trigger ? (
+        <DialogTrigger asChild>
+          {trigger ?? <Button variant="default">Asignar Membresía</Button>}
+        </DialogTrigger>
+      ) : null}
 
       <DialogContent >
         <DialogHeader>
-          <DialogTitle>Nueva Asignación de Membresía</DialogTitle>
-          <DialogDescription>Selecciona cliente y membresía para crear la asignación</DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
+            {cashBlocked ? (
+              <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>Debes abrir la caja antes de asignar una membresía.</span>
+              </div>
+            ) : null}
+
             <div className="grid gap-2">
               <Label htmlFor="clientId">Cliente *</Label>
+              {presetClient ? (
+                <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm font-medium">
+                  {presetClient.label}
+                </div>
+              ) : (
               <Popover open={clientComboboxOpen} onOpenChange={setClientComboboxOpen}>
                 <PopoverTrigger asChild>
                   <Button
@@ -380,22 +439,36 @@ export default function NewSubscriptionsAssignment({ onSubmit, onAssignmentCreat
                   </Command>
                 </PopoverContent>
               </Popover>
+              )}
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="paymentMethod">Método de Pago *</Label>
-              <select
-                id="paymentMethod"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value)}
-                disabled={loading}
-              >
-                <option value="">Selecciona método de pago</option>
-                <option value="cash">Efectivo</option>
-                <option value="card">Tarjeta</option>
-                <option value="transfer">Transferencia</option>
-              </select>
+              <Label id="paymentMethodLabel">Método de Pago *</Label>
+              <div role="radiogroup" aria-labelledby="paymentMethodLabel" className="grid grid-cols-3 gap-2">
+                {PAYMENT_METHODS.map(({ value, label, Icon }) => {
+                  const isSelected = paymentMethod === value
+
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      role="radio"
+                      aria-checked={isSelected}
+                      onClick={() => setPaymentMethod(value)}
+                      disabled={loading}
+                      className={cn(
+                        "flex h-14 flex-col items-center justify-center gap-1 rounded-md border text-sm font-medium transition-colors",
+                        isSelected
+                          ? "border-primary bg-primary/10 text-primary ring-2 ring-primary"
+                          : "border-border hover:bg-muted/40"
+                      )}
+                    >
+                      <Icon className="h-5 w-5" />
+                      {label}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
 
             <div className="grid gap-2">
@@ -406,7 +479,7 @@ export default function NewSubscriptionsAssignment({ onSubmit, onAssignmentCreat
                 </div>
               ) : (
                 <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
-                  {subscriptions.map((subscription) => {
+                  {orderedSubscriptions.map((subscription) => {
                     const isSelected = planId === subscription._id
                     const benefits = (subscription.benefits || []).filter((item) => item.included !== false)
 
@@ -416,7 +489,7 @@ export default function NewSubscriptionsAssignment({ onSubmit, onAssignmentCreat
                         type="button"
                         onClick={() => setPlanId(subscription._id)}
                         className={`w-full rounded-md border p-3 text-left transition-colors ${isSelected
-                          ? 'border-primary bg-muted'
+                          ? 'border-primary bg-primary/10 ring-2 ring-primary'
                           : 'border-border hover:bg-muted/40'
                           }`}
                         disabled={loading}
@@ -474,12 +547,13 @@ export default function NewSubscriptionsAssignment({ onSubmit, onAssignmentCreat
               Cancelar
             </Button>
 
-            <Button type="submit" disabled={loading}>
-              {loading ? "Guardando..." : "Asignar"}
+            <Button type="submit" disabled={loading || cashBlocked}>
+              {loading ? "Guardando..." : submitLabel}
             </Button>
           </DialogFooter>
         </form>
       </DialogContent>
+      {cashGateDialog}
     </Dialog>
   );
 }

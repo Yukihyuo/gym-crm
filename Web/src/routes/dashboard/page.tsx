@@ -1,29 +1,20 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import apiClient from '@/lib/axios'
 import { API_ENDPOINTS } from '@/config/api'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { TrendingUp, TrendingDown, ShoppingCart, Users, Package, Calendar, DollarSign, CreditCard } from 'lucide-react'
+import { Skeleton } from '@/components/ui/skeleton'
+import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import DownloadFinancialReport from '@/components/Dasboard/DownloadFinancialReport'
-
-interface DashboardSummary {
-  currentMonth: {
-    revenue: number
-    sales: number
-    revenueChange: number
-    salesChange: number
-  }
-  subscriptions: {
-    active: number
-    newThisMonth: number
-  }
-  inventory: {
-    lowStockCount: number
-  }
-  clients: {
-    total: number
-  }
-}
+import { DashboardFilters } from '@/components/Dasboard/DashboardFilters'
+import { OverviewKpis } from '@/components/Dasboard/OverviewKpis'
+import {
+  ALL_STORES,
+  PERIOD_OPTIONS,
+  formatCurrency,
+  type DashboardOverview,
+  type DashboardPeriod,
+} from '@/components/Dasboard/dashboardOverview'
+import { useAuthStore } from '@/store/authStore'
 
 interface TopProduct {
   _id: string
@@ -74,7 +65,9 @@ interface ExpiringSubscription {
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82ca9d']
 
 export default function Page() {
-  const [summary, setSummary] = useState<DashboardSummary | null>(null)
+  const [period, setPeriod] = useState<DashboardPeriod>('today')
+  const [storeId, setStoreId] = useState<string>(ALL_STORES)
+  const [overview, setOverview] = useState<DashboardOverview | null>(null)
   const [topProducts, setTopProducts] = useState<TopProduct[]>([])
   const [topSubscriptions, setTopSubscriptions] = useState<TopSubscription[]>([])
   const [revenueByCategory, setRevenueByCategory] = useState<RevenueByCategory[]>([])
@@ -82,54 +75,63 @@ export default function Page() {
   const [topBuyers, setTopBuyers] = useState<TopBuyer[]>([])
   const [expiring, setExpiring] = useState<ExpiringSubscription[]>([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+
+  const accessStores = useAuthStore((state) => state.access?.stores)
+  const stores = useMemo(
+    () =>
+      (accessStores ?? []).flatMap((store) => {
+        const id = store._id ?? store.id
+        return id ? [{ id, name: store.name }] : []
+      }),
+    [accessStores]
+  )
+
+  const periodTitle = PERIOD_OPTIONS.find((option) => option.value === period)?.title ?? ''
 
   useEffect(() => {
-    fetchDashboardData()
-  }, [])
+    let cancelled = false
 
-  const fetchDashboardData = async () => {
-    try {
-      setLoading(true)
-      const [summaryRes, productsRes, subscriptionsRes, categoryRes, paymentRes, buyersRes, expiringRes] = await Promise.all([
-        apiClient.get(API_ENDPOINTS.ANALYTICS.DASHBOARD_SUMMARY),
-        apiClient.get(API_ENDPOINTS.ANALYTICS.PRODUCTS_TOP_SELLING + '?limit=5'),
-        apiClient.get(API_ENDPOINTS.ANALYTICS.SUBSCRIPTIONS_MOST_ACQUIRED),
-        apiClient.get(API_ENDPOINTS.ANALYTICS.REVENUE_BY_CATEGORY),
-        apiClient.get(API_ENDPOINTS.ANALYTICS.SALES_BY_PAYMENT_METHOD),
-        apiClient.get(API_ENDPOINTS.ANALYTICS.CLIENTS_TOP_BUYERS + '?limit=5'),
-        apiClient.get(API_ENDPOINTS.ANALYTICS.SUBSCRIPTIONS_EXPIRING_SOON + '?days=30')
-      ])
+    const fetchDashboardData = async () => {
+      const params = { period, storeId }
 
-      setSummary(summaryRes.data)
-      setTopProducts(productsRes.data)
-      setTopSubscriptions(subscriptionsRes.data)
-      setRevenueByCategory(categoryRes.data)
-      setSalesByPayment(paymentRes.data)
-      setTopBuyers(buyersRes.data)
-      setExpiring(expiringRes.data)
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error)
-    } finally {
-      setLoading(false)
+      try {
+        setRefreshing(true)
+        const [overviewRes, productsRes, subscriptionsRes, categoryRes, paymentRes, buyersRes, expiringRes] = await Promise.all([
+          apiClient.get(API_ENDPOINTS.ANALYTICS.DASHBOARD_OVERVIEW, { params }),
+          apiClient.get(API_ENDPOINTS.ANALYTICS.PRODUCTS_TOP_SELLING, { params: { ...params, limit: 5 } }),
+          apiClient.get(API_ENDPOINTS.ANALYTICS.SUBSCRIPTIONS_MOST_ACQUIRED, { params }),
+          apiClient.get(API_ENDPOINTS.ANALYTICS.REVENUE_BY_CATEGORY, { params }),
+          apiClient.get(API_ENDPOINTS.ANALYTICS.SALES_BY_PAYMENT_METHOD, { params }),
+          apiClient.get(API_ENDPOINTS.ANALYTICS.CLIENTS_TOP_BUYERS, { params: { ...params, limit: 5 } }),
+          apiClient.get(API_ENDPOINTS.ANALYTICS.SUBSCRIPTIONS_EXPIRING_SOON, { params: { storeId, days: 30 } })
+        ])
+
+        if (cancelled) return
+
+        setOverview(overviewRes.data)
+        setTopProducts(productsRes.data)
+        setTopSubscriptions(subscriptionsRes.data)
+        setRevenueByCategory(categoryRes.data)
+        setSalesByPayment(paymentRes.data)
+        setTopBuyers(buyersRes.data)
+        setExpiring(expiringRes.data)
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error)
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+          setRefreshing(false)
+        }
+      }
     }
-  }
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('es-MX', {
-      style: 'currency',
-      currency: 'MXN'
-    }).format(value)
-  }
+    void fetchDashboardData()
 
-  const formatPercent = (value: number) => {
-    const isPositive = value >= 0
-    return (
-      <span className={`flex items-center gap-1 ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
-        {isPositive ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-        {Math.abs(value).toFixed(1)}%
-      </span>
-    )
-  }
+    return () => {
+      cancelled = true
+    }
+  }, [period, storeId])
 
   const paymentMethodLabels: Record<string, string> = {
     cash: 'Efectivo',
@@ -137,76 +139,44 @@ export default function Page() {
     transfer: 'Transferencia'
   }
 
+  const emptyState = (
+    <p className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">
+      Sin datos en este periodo
+    </p>
+  )
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-lg">Cargando dashboard...</div>
+      <div className="space-y-6 p-6">
+        <Skeleton className="h-10 w-64" />
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {[0, 1, 2, 3].map((item) => (
+            <Skeleton key={item} className="h-40" />
+          ))}
+        </div>
       </div>
     )
   }
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground">Resumen general del negocio</p>
-      </div>
-    <DownloadFinancialReport/>
-      {/* KPIs principales */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ingresos del Mes</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(summary?.currentMonth.revenue || 0)}</div>
-            <p className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
-              {formatPercent(summary?.currentMonth.revenueChange || 0)} vs mes anterior
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ventas</CardTitle>
-            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{summary?.currentMonth.sales || 0}</div>
-            <p className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
-              {formatPercent(summary?.currentMonth.salesChange || 0)} vs mes anterior
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Subscripciones Activas</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{summary?.subscriptions.active || 0}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              +{summary?.subscriptions.newThisMonth || 0} nuevas este mes
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Clientes</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{summary?.clients.total || 0}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {summary?.inventory.lowStockCount || 0} productos bajo stock
-            </p>
-          </CardContent>
-        </Card>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Dashboard</h1>
+          <p className="text-muted-foreground">Cómo va tu gimnasio · {periodTitle}</p>
+        </div>
+        <DashboardFilters
+          period={period}
+          onPeriodChange={setPeriod}
+          storeId={storeId}
+          onStoreChange={setStoreId}
+          stores={stores}
+        />
       </div>
 
+      <div className={refreshing ? 'space-y-6 opacity-60 transition-opacity' : 'space-y-6 transition-opacity'} aria-busy={refreshing}>
+        {overview && <OverviewKpis overview={overview} />}
+        <DownloadFinancialReport/>
       {/* Gráficos principales */}
       <div className="grid gap-4 md:grid-cols-2">
         {/* Productos más vendidos */}
@@ -216,6 +186,7 @@ export default function Page() {
             <CardDescription>Top 5 productos por cantidad vendida</CardDescription>
           </CardHeader>
           <CardContent>
+            {topProducts.length === 0 ? emptyState : (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={topProducts}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -225,6 +196,7 @@ export default function Page() {
                 <Bar dataKey="totalQuantity" fill="#8884d8" name="Cantidad Vendida" />
               </BarChart>
             </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
@@ -235,6 +207,7 @@ export default function Page() {
             <CardDescription>Distribución de ingresos por tipo de producto</CardDescription>
           </CardHeader>
           <CardContent>
+            {revenueByCategory.length === 0 ? emptyState : (
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
@@ -253,6 +226,7 @@ export default function Page() {
                 <Tooltip formatter={(value) => formatCurrency(Number(value))} />
               </PieChart>
             </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
@@ -263,6 +237,7 @@ export default function Page() {
             <CardDescription>Planes más adquiridos por los clientes</CardDescription>
           </CardHeader>
           <CardContent>
+            {topSubscriptions.length === 0 ? emptyState : (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={topSubscriptions} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" />
@@ -272,6 +247,7 @@ export default function Page() {
                 <Bar dataKey="totalAcquisitions" fill="#00C49F" name="Total Adquisiciones" />
               </BarChart>
             </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
@@ -282,6 +258,7 @@ export default function Page() {
             <CardDescription>Distribución de ventas por forma de pago</CardDescription>
           </CardHeader>
           <CardContent>
+            {salesByPayment.length === 0 ? emptyState : (
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
@@ -302,6 +279,7 @@ export default function Page() {
                 />
               </PieChart>
             </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -333,6 +311,9 @@ export default function Page() {
                   </div>
                 </div>
               ))}
+              {topBuyers.length === 0 && (
+                <p className="text-center text-muted-foreground py-4">Sin compras en este periodo</p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -365,6 +346,7 @@ export default function Page() {
             </div>
           </CardContent>
         </Card>
+      </div>
       </div>
     </div>
   )

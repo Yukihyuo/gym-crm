@@ -5,25 +5,52 @@ import Subscription from "../models/Subscription.js"
 import SubscriptionAssignment from "../models/SubscriptionAssignment.js"
 import Client from "../models/Client.js"
 import { authMiddleware } from "../middleware/auth.middleware.js"
+import { buildCreatedAtFilter, getDashboardOverview } from "../services/DashboardOverview.services.js"
 
 const router = express.Router()
 
 // Aplicar autenticación a todos los endpoints de analytics
 router.use(authMiddleware)
 
+// Sedes sobre las que se calcula: todas las accesibles, o solo `?storeId=` si el usuario tiene acceso a ella.
+const resolveStoreIds = (req) => {
+  const { storeIds } = req.analyticsContext
+  const requested = req.query.storeId
+
+  if (!requested || requested === "all") {
+    return storeIds
+  }
+
+  return storeIds.includes(requested) ? [requested] : []
+}
+
+// Indicadores principales del dueño: ingresos, accesos y cartera de membresías por periodo y sede.
+router.get("/dashboard/overview", async (req, res) => {
+  try {
+    const { brandId } = req.analyticsContext
+
+    const overview = await getDashboardOverview({
+      brandId,
+      storeIds: resolveStoreIds(req),
+      period: req.query.period,
+    })
+
+    res.json(overview)
+  } catch (error) {
+    res.status(500).json({ message: error.message })
+  }
+})
+
 // Obtener productos más vendidos
 router.get("/products/top-selling", async (req, res) => {
   try {
-    const { startDate, endDate, limit = 10 } = req.query
-    const { storeIds } = req.analyticsContext
+    const { limit = 10 } = req.query
+    const storeIds = resolveStoreIds(req)
 
     // Construcción del filtro de fecha
     const matchFilter = { status: "completed", storeId: { $in: storeIds } }
-    if (startDate || endDate) {
-      matchFilter.createdAt = {}
-      if (startDate) matchFilter.createdAt.$gte = new Date(startDate)
-      if (endDate) matchFilter.createdAt.$lte = new Date(endDate)
-    }
+    const createdAt = buildCreatedAtFilter(req.query)
+    if (createdAt) matchFilter.createdAt = createdAt
 
     // Agregación para obtener productos más vendidos
     const topProducts = await Sale.aggregate([
@@ -51,16 +78,12 @@ router.get("/products/top-selling", async (req, res) => {
 // Obtener subscripciones más adquiridas
 router.get("/subscriptions/most-acquired", async (req, res) => {
   try {
-    const { startDate, endDate } = req.query
     const { brandId } = req.analyticsContext
 
     // Construcción del filtro de fecha
-    const matchFilter = { brandId }
-    if (startDate || endDate) {
-      matchFilter.createdAt = {}
-      if (startDate) matchFilter.createdAt.$gte = new Date(startDate)
-      if (endDate) matchFilter.createdAt.$lte = new Date(endDate)
-    }
+    const matchFilter = { brandId, storeId: { $in: resolveStoreIds(req) } }
+    const createdAt = buildCreatedAtFilter(req.query)
+    if (createdAt) matchFilter.createdAt = createdAt
 
     // Agregación para obtener subscripciones más adquiridas
     const topSubscriptions = await SubscriptionAssignment.aggregate([
@@ -268,15 +291,9 @@ router.get("/dashboard/summary", async (req, res) => {
 // Obtener ventas por método de pago
 router.get("/sales/by-payment-method", async (req, res) => {
   try {
-    const { startDate, endDate } = req.query
-    const { storeIds } = req.analyticsContext
-
-    const dateFilter = { status: "completed", storeId: { $in: storeIds } }
-    if (startDate || endDate) {
-      dateFilter.createdAt = {}
-      if (startDate) dateFilter.createdAt.$gte = new Date(startDate)
-      if (endDate) dateFilter.createdAt.$lte = new Date(endDate)
-    }
+    const dateFilter = { status: "completed", storeId: { $in: resolveStoreIds(req) } }
+    const createdAt = buildCreatedAtFilter(req.query)
+    if (createdAt) dateFilter.createdAt = createdAt
 
     const salesByPayment = await Sale.aggregate([
       { $match: dateFilter },
@@ -299,15 +316,9 @@ router.get("/sales/by-payment-method", async (req, res) => {
 // Obtener ingresos por categoría de producto
 router.get("/revenue/by-category", async (req, res) => {
   try {
-    const { startDate, endDate } = req.query
-    const { storeIds } = req.analyticsContext
-
-    const dateFilter = { status: "completed", storeId: { $in: storeIds } }
-    if (startDate || endDate) {
-      dateFilter.createdAt = {}
-      if (startDate) dateFilter.createdAt.$gte = new Date(startDate)
-      if (endDate) dateFilter.createdAt.$lte = new Date(endDate)
-    }
+    const dateFilter = { status: "completed", storeId: { $in: resolveStoreIds(req) } }
+    const createdAt = buildCreatedAtFilter(req.query)
+    if (createdAt) dateFilter.createdAt = createdAt
 
     const revenueByCategory = await Sale.aggregate([
       { $match: dateFilter },
@@ -342,10 +353,13 @@ router.get("/revenue/by-category", async (req, res) => {
 router.get("/clients/top-buyers", async (req, res) => {
   try {
     const { limit = 10 } = req.query
-    const { storeIds } = req.analyticsContext
+
+    const matchFilter = { status: "completed", storeId: { $in: resolveStoreIds(req) } }
+    const createdAt = buildCreatedAtFilter(req.query)
+    if (createdAt) matchFilter.createdAt = createdAt
 
     const topClients = await Sale.aggregate([
-      { $match: { status: "completed", storeId: { $in: storeIds } } },
+      { $match: matchFilter },
       {
         $group: {
           _id: "$clientId",
@@ -396,6 +410,7 @@ router.get("/subscriptions/expiring-soon", async (req, res) => {
       {
         $match: {
           brandId,
+          storeId: { $in: resolveStoreIds(req) },
           status: "active",
           endDate: {
             $gte: now,

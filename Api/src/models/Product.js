@@ -29,6 +29,16 @@ const productSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  // Código compartido para vincular el mismo producto entre sucursales.
+  // Opcional y retrocompatible: los productos existentes lo tienen en null.
+  // El mismo SKU puede repetirse en distintas sucursales (es la identidad
+  // del producto lógico), pero es único dentro de una misma sucursal.
+  sku: {
+    type: String,
+    trim: true,
+    uppercase: true,
+    default: null
+  },
   // Agregado opcional sin afectar registros anteriores
   imageUrl: {
     type: String,
@@ -40,6 +50,11 @@ const productSchema = new mongoose.Schema({
     default: 'available'
   }
 }, { timestamps: true })
+
+// El SKU debe ser único dentro de una sucursal (sparse para no afectar
+// productos antiguos sin SKU). Entre sucursales se permite repetir,
+// ya que es la clave para vincular el mismo producto.
+productSchema.index({ storeId: 1, sku: 1 }, { unique: true, sparse: true });
 
 const Product = mongoose.model('Product', productSchema);
 export default Product;

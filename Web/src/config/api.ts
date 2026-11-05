@@ -160,6 +160,7 @@ export const API_ENDPOINTS = {
     SUBSCRIPTIONS_MOST_ACQUIRED: `${API_URL}v1/analytics/subscriptions/most-acquired`,
     REVENUE_BY_PERIOD: `${API_URL}v1/analytics/revenue/by-period`,
     DASHBOARD_SUMMARY: `${API_URL}v1/analytics/dashboard/summary`,
+    DASHBOARD_OVERVIEW: `${API_URL}v1/analytics/dashboard/overview`,
     SALES_BY_PAYMENT_METHOD: `${API_URL}v1/analytics/sales/by-payment-method`,
     REVENUE_BY_CATEGORY: `${API_URL}v1/analytics/revenue/by-category`,
     CLIENTS_TOP_BUYERS: `${API_URL}v1/analytics/clients/top-buyers`,

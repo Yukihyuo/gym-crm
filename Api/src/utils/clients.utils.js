@@ -141,13 +141,13 @@ export const createClientRegistrationFeeAssignment = async ({ clientId, storeId,
   return assignment
 }
 
-export const sendWelcomeEmailSafely = async ({ client, brandId, normalizedEmail }) => {
+export const sendWelcomeEmailSafely = async ({ client, brandId, normalizedEmail, defaultPassword }) => {
   let welcomeEmailSent = false
 
   try {
     const brand = await Brand.findById(brandId)
     if (brand && normalizedEmail) {
-      await sendWelcomeEmail(client, brand)
+      await sendWelcomeEmail(client, brand, defaultPassword)
       welcomeEmailSent = true
     }
   } catch (error) {

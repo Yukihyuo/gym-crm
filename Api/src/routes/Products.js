@@ -11,15 +11,41 @@ const validateStoreExists = async (storeId) => {
   return !!store;
 };
 
+// Normaliza el SKU: trim + mayúsculas; vacío/ausente pasa a null (retrocompatible)
+const normalizeSku = (value) => {
+  if (value === undefined || value === null) return null;
+  const trimmed = String(value).trim();
+  return trimmed ? trimmed.toUpperCase() : null;
+};
+
+// Valida que el SKU no esté duplicado dentro de la misma sucursal
+const ensureSkuAvailable = async (storeId, sku, excludeId = null) => {
+  if (!sku) return;
+
+  const filter = { storeId, sku };
+  if (excludeId) filter._id = { $ne: excludeId };
+
+  const existing = await Product.findOne(filter);
+  if (existing) {
+    const error = new Error(`Ya existe un producto con el SKU "${sku}" en esta tienda`);
+    error.statusCode = 400;
+    throw error;
+  }
+};
+
+// Convierte errores de índice único (E11000) en un 400 legible
+const isDuplicateKeyError = (error) => error && error.code === 11000;
+
 
 
 
 // Create - Crear un nuevo producto
 router.post('/create', uploadProductImage.single('image'), async (req, res) => {
   try {
-    const { storeId, name, price, stock, category, status } = req.body;
+    const { storeId, name, price, stock, category, status, sku } = req.body;
     const parsedPrice = Number(price);
     const parsedStock = stock !== undefined ? Number(stock) : 0;
+    const normalizedSku = normalizeSku(sku);
 
     // Validar campos requeridos
     if (!storeId || !name || price === undefined || !category || stock === undefined) {
@@ -49,6 +75,9 @@ router.post('/create', uploadProductImage.single('image'), async (req, res) => {
       });
     }
 
+    // Validar que el SKU no esté duplicado dentro de la sucursal
+    await ensureSkuAvailable(storeId, normalizedSku);
+
     const imagePath = req.file ? `v1/uploads/products/${req.file.filename}` : null;
 
     // Crear el nuevo producto
@@ -59,6 +88,7 @@ router.post('/create', uploadProductImage.single('image'), async (req, res) => {
       stock: parsedStock,
       category,
       status: status || 'available',
+      sku: normalizedSku,
       imageUrl: imagePath,
     });
 
@@ -72,6 +102,21 @@ router.post('/create', uploadProductImage.single('image'), async (req, res) => {
 
   } catch (error) {
     console.error('Error en create:', error);
+
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({
+        message: error.message,
+        error: error.message
+      });
+    }
+
+    if (isDuplicateKeyError(error)) {
+      return res.status(400).json({
+        message: 'Ya existe un producto con ese SKU en esta tienda',
+        error: error.message
+      });
+    }
+
     res.status(500).json({
       message: 'Error al crear producto',
       error: error.message
@@ -145,10 +190,11 @@ router.get('/:storeId/getById/:id', async (req, res) => {
 router.put('/:storeId/update/:id', uploadProductImage.single('image'), async (req, res) => {
   try {
     const { storeId, id } = req.params;
-    const { name, price, stock, category, status } = req.body;
+    const { name, price, stock, category, status, sku } = req.body;
 
     const parsedPrice = price !== undefined ? Number(price) : undefined;
     const parsedStock = stock !== undefined ? Number(stock) : undefined;
+    const normalizedSku = normalizeSku(sku);
 
     const storeExists = await validateStoreExists(storeId);
     if (!storeExists) {
@@ -190,12 +236,18 @@ router.put('/:storeId/update/:id', uploadProductImage.single('image'), async (re
       }
     }
 
+    // Validar que el nuevo SKU no esté duplicado dentro de la sucursal
+    if (sku !== undefined) {
+      await ensureSkuAvailable(storeId, normalizedSku, id);
+    }
+
     // Actualizar campos
     if (name !== undefined) product.name = name;
     if (parsedPrice !== undefined) product.price = parsedPrice;
     if (parsedStock !== undefined) product.stock = parsedStock;
     if (category !== undefined) product.category = category;
     if (status !== undefined) product.status = status;
+    if (sku !== undefined) product.sku = normalizedSku;
     if (req.file) product.imageUrl = `v1/uploads/products/${req.file.filename}`;
 
     await product.save();
@@ -207,6 +259,21 @@ router.put('/:storeId/update/:id', uploadProductImage.single('image'), async (re
 
   } catch (error) {
     console.error('Error en update:', error);
+
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({
+        message: error.message,
+        error: error.message
+      });
+    }
+
+    if (isDuplicateKeyError(error)) {
+      return res.status(400).json({
+        message: 'Ya existe un producto con ese SKU en esta tienda',
+        error: error.message
+      });
+    }
+
     res.status(500).json({
       message: 'Error al actualizar producto',
       error: error.message

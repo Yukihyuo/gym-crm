@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import axios from 'axios'
 import apiClient from '@/lib/axios'
 import { API_ENDPOINTS } from '@/config/api'
 import { useAuthStore } from '@/store/authStore'
@@ -26,9 +27,11 @@ type CashCutApiResponse = {
 interface CashCutState {
 	cashCutId: string | null
 	loading: boolean
+	syncing: boolean
 	error: string | null
 	setCashCutId: (cashCutId: string | null) => void
 	clearCashCut: () => void
+	syncCashCut: () => Promise<string | null>
 	openCashCut: (payload?: OpenCashCutPayload) => Promise<string>
 	closeCashCut: (payload: CloseCashCutPayload) => Promise<void>
 }
@@ -38,11 +41,50 @@ export const useCashCutStore = create<CashCutState>()(
 		(set, get) => ({
 			cashCutId: null,
 			loading: false,
+			syncing: false,
 			error: null,
 
 			setCashCutId: (cashCutId) => set({ cashCutId, error: null }),
 
 			clearCashCut: () => set({ cashCutId: null, loading: false, error: null }),
+
+			// El servidor es la fuente de verdad: la caja es por usuario + sucursal activa.
+			syncCashCut: async () => {
+				const { getUserId, getActiveStoreId } = useAuthStore.getState()
+				const userId = getUserId()
+				const storeId = getActiveStoreId()
+
+				if (!userId || !storeId) {
+					set({ cashCutId: null, syncing: false })
+					return null
+				}
+
+				set({ syncing: true })
+
+				try {
+					const response = await apiClient.get<CashCutApiResponse>(
+						API_ENDPOINTS.CASH_CUTS.GET_OPEN_BY_USER(userId)
+					)
+					const serverCashCutId = response.data?.cashCut?._id ?? response.data?.cashCut?.id ?? null
+
+					// Si la sucursal cambió mientras se consultaba, esta respuesta ya no aplica.
+					if (useAuthStore.getState().getActiveStoreId() !== storeId) return get().cashCutId
+
+					set({ cashCutId: serverCashCutId, syncing: false })
+					return serverCashCutId
+				} catch (error) {
+					if (useAuthStore.getState().getActiveStoreId() !== storeId) return get().cashCutId
+
+					if (axios.isAxiosError(error) && error.response?.status === 404) {
+						set({ cashCutId: null, syncing: false })
+						return null
+					}
+
+					// Sin conexión u otro error: se conserva el último estado conocido.
+					set({ syncing: false })
+					return get().cashCutId
+				}
+			},
 
 			openCashCut: async (payload) => {
 				const { getUserId, getBrandId, getActiveStoreId } = useAuthStore.getState()
@@ -86,6 +128,16 @@ export const useCashCutStore = create<CashCutState>()(
 
 					return newCashCutId
 				} catch (error) {
+					// La caja ya existe en el servidor pero este navegador la perdió: se reutiliza en vez de bloquear al cajero.
+					const existingId = axios.isAxiosError(error)
+						? (error.response?.data as CashCutApiResponse | undefined)?.cashCut?._id
+						: undefined
+
+					if (existingId) {
+						set({ cashCutId: existingId, loading: false, error: null })
+						return existingId
+					}
+
 					const message = error instanceof Error ? error.message : 'Error al abrir caja'
           console.log(error)
 					set({ loading: false, error: message })

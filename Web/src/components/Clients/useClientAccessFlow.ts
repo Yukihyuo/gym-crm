@@ -1,21 +1,20 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react"
 import { Html5Qrcode, Html5QrcodeScannerState } from "html5-qrcode"
-import axios from "axios"
+import { isRenewableDenial, type AccessResultPayload } from "./accessResult"
 import {
-  normalizeAccessResult,
-  type AccessResultPayload,
-} from "./accessResult"
+  requestAccessByClientId,
+  requestAccessByContact,
+  requestAccessByQr,
+} from "./clientAccessApi"
 
 type Mode = "qr" | "manual"
+type ResponseSource = "qr" | "manual"
 
 type UseClientAccessFlowOptions = {
   enabled: boolean
 }
 
 export function useClientAccessFlow({ enabled }: UseClientAccessFlowOptions) {
-  const apiUrl = `${import.meta.env.VITE_API_URL}v1/clients/login-qr`
-  const contactApiUrl = `${import.meta.env.VITE_API_URL}v1/clients/login-qr-contact`
-
   const [mode, setMode] = useState<Mode>("qr")
   const [manualInput, setManualInput] = useState("")
   const [manualError, setManualError] = useState("")
@@ -24,9 +23,11 @@ export function useClientAccessFlow({ enabled }: UseClientAccessFlowOptions) {
   const [scanError, setScanError] = useState<string>("")
   const [accessGranted, setAccessGranted] = useState(false)
   const [accessData, setAccessData] = useState<AccessResultPayload | null>(null)
+  const [deniedData, setDeniedData] = useState<AccessResultPayload | null>(null)
   const scannerRef = useRef<Html5Qrcode | null>(null)
   const readerId = useId().replace(/:/g, "")
   const scannerElementId = `reader-${readerId}`
+  const accessDenied = deniedData !== null
 
   const stopScanner = useCallback(async (scannerInstance = scannerRef.current) => {
     if (!scannerInstance) {
@@ -62,6 +63,7 @@ export function useClientAccessFlow({ enabled }: UseClientAccessFlowOptions) {
   const resetAccessFlow = useCallback(() => {
     setAccessGranted(false)
     setAccessData(null)
+    setDeniedData(null)
     setScanError("")
     setScanStatus("Inicializando cámara...")
     setMode("qr")
@@ -70,19 +72,29 @@ export function useClientAccessFlow({ enabled }: UseClientAccessFlowOptions) {
     setManualLoading(false)
   }, [])
 
-  const manageResponse = useCallback((data: unknown) => {
-    const normalized = normalizeAccessResult(data)
-    console.log("Request normalizado:", normalized)
+  const manageResponse = useCallback((payload: AccessResultPayload, source: ResponseSource) => {
+    if (payload.kind === "error") {
+      if (isRenewableDenial(payload)) {
+        setDeniedData(payload)
+        setScanStatus("")
+        setScanError("")
+        setManualError("")
+        return
+      }
 
-    if (normalized.kind === "error") {
-      setScanError(normalized.message ?? "No se pudo registrar el acceso")
-      setScanStatus("")
+      if (source === "manual") {
+        setManualError(payload.message)
+      } else {
+        setScanError(payload.message)
+        setScanStatus("")
+      }
       return
     }
 
+    setDeniedData(null)
     setAccessGranted(true)
-    setAccessData(normalized)
-    setScanStatus(normalized.message)
+    setAccessData(payload)
+    setScanStatus(payload.message)
     setScanError("")
 
     const scannerInstance = scannerRef.current
@@ -101,25 +113,20 @@ export function useClientAccessFlow({ enabled }: UseClientAccessFlowOptions) {
     setManualLoading(true)
     setManualError("")
 
-    const isEmail = value.includes("@")
-    const body = isEmail ? { email: value } : { phone: value }
-
     try {
-      const response = await axios.post<unknown>(contactApiUrl, body)
-      manageResponse(response.data)
-    } catch (error: unknown) {
-      if (axios.isAxiosError(error) && error.response) {
-        setManualError(error.response.data?.message ?? "Error al registrar acceso")
-      } else {
-        setManualError("Error de red. Intenta nuevamente.")
-      }
+      manageResponse(await requestAccessByContact(value), "manual")
     } finally {
       setManualLoading(false)
     }
-  }, [contactApiUrl, manualInput, manageResponse])
+  }, [manualInput, manageResponse])
+
+  // Reintenta el acceso del cliente rechazado (p. ej. justo después de renovar su membresía).
+  const retryAccessForClient = useCallback(async (clientId: string) => {
+    manageResponse(await requestAccessByClientId(clientId), "manual")
+  }, [manageResponse])
 
   useEffect(() => {
-    if (!enabled || accessGranted || mode !== "qr") {
+    if (!enabled || accessGranted || accessDenied || mode !== "qr") {
       return
     }
 
@@ -151,27 +158,12 @@ export function useClientAccessFlow({ enabled }: UseClientAccessFlowOptions) {
     }
 
     const loginWithQR = async (decodedText: string) => {
-      try {
-        const response = await axios.post<unknown>(apiUrl, { qrData: decodedText })
-        if (!mounted) {
-          return
-        }
-
-        manageResponse(response.data)
-      } catch (error: unknown) {
-        console.error("Error en login con QR:", error)
-        if (!mounted) {
-          return
-        }
-
-        if (axios.isAxiosError(error) && error.response) {
-          setScanError(error.response.data?.message ?? "Error al registrar acceso")
-        } else {
-          setScanError("Error de red. Intenta nuevamente.")
-        }
-
-        setScanStatus("")
+      const result = await requestAccessByQr(decodedText)
+      if (!mounted) {
+        return
       }
+
+      manageResponse(result, "qr")
     }
 
     const startScanner = async () => {
@@ -253,7 +245,7 @@ export function useClientAccessFlow({ enabled }: UseClientAccessFlowOptions) {
       cancelAnimationFrame(frameId)
       void stopScanner()
     }
-  }, [accessGranted, apiUrl, enabled, manageResponse, mode, scannerElementId, stopScanner])
+  }, [accessDenied, accessGranted, enabled, manageResponse, mode, scannerElementId, stopScanner])
 
   return {
     mode,
@@ -266,9 +258,12 @@ export function useClientAccessFlow({ enabled }: UseClientAccessFlowOptions) {
     scanError,
     accessGranted,
     accessData,
+    accessDenied,
+    deniedData,
     scannerElementId,
     resetAccessFlow,
     manualLogin,
+    retryAccessForClient,
     clearManualError: () => setManualError(""),
   }
 }

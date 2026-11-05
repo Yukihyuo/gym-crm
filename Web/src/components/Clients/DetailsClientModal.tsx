@@ -46,12 +46,23 @@ type ClientFormData = z.infer<typeof clientSchema>
 interface DetailsClientProps {
   clientId: string
   onClientUpdated?: () => void
+  /** Modo controlado: el padre decide cuándo abrir (p. ej. al tocar una fila) y no se muestra el item de menú. */
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
-export default function DetailsClientModal({ clientId, onClientUpdated }: DetailsClientProps) {
+export default function DetailsClientModal({
+  clientId,
+  onClientUpdated,
+  open: controlledOpen,
+  onOpenChange,
+}: DetailsClientProps) {
   const { token } = useAuthStore()
-  
-  const [open, setOpen] = useState(false)
+
+  const isControlled = controlledOpen !== undefined
+  const [internalOpen, setInternalOpen] = useState(false)
+  const open = isControlled ? controlledOpen : internalOpen
+  const setOpen = isControlled ? (onOpenChange ?? (() => {})) : setInternalOpen
   const [isEditing, setIsEditing] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -154,17 +165,19 @@ export default function DetailsClientModal({ clientId, onClientUpdated }: Detail
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <DropdownMenuItem
-          onSelect={(e) => {
-            e.preventDefault()
-            setOpen(true)
-          }}
-        >
-          <Eye className="mr-2 h-4 w-4" />
-          Ver detalles
-        </DropdownMenuItem>
-      </DialogTrigger>
+      {!isControlled ? (
+        <DialogTrigger asChild>
+          <DropdownMenuItem
+            onSelect={(e) => {
+              e.preventDefault()
+              setOpen(true)
+            }}
+          >
+            <Eye className="mr-2 h-4 w-4" />
+            Ver detalles
+          </DropdownMenuItem>
+        </DialogTrigger>
+      ) : null}
 
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>

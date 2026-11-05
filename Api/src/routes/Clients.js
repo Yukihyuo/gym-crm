@@ -8,6 +8,7 @@ import Visit from "../models/Visit.js"
 import Brand from "../models/Brand.js"
 import { sendWelcomeEmail } from "../emails/email.handler.js"
 import { findClientByIdentifier, registerVisit } from "../services/Access.services.js"
+import { getClientsOperationalContext, describeMembership } from "../services/ClientMembership.services.js"
 import Terminal from "../models/Terminal.js"
 import {
   buildClientResponse,
@@ -77,11 +78,17 @@ router.get('/searchSelect/:search', async (req, res) => {
       .sort({ 'profile.names': 1 })
       .lean();
 
+    const context = await getClientsOperationalContext(clients.map((client) => client._id));
+
     const formattedClients = clients.map(client => ({
       value: client._id, // Tu ID de "portabilidad"
       label: `${client.profile?.names || ''} ${client.profile?.lastNames || ''}`.trim() || client.username,
-      // Metadata para que el usuario identifique al socio correcto
-      subtitle: `${client.profile?.phone || ''} | ID: ${client._id}` 
+      // Metadata para distinguir homónimos y ver si el socio está al corriente
+      subtitle: [
+        client.profile?.phone || 'Sin teléfono',
+        `@${client.username}`,
+        describeMembership(context[client._id].membership)
+      ].join(' · ')
     }));
 
     res.status(200).json(formattedClients);
@@ -157,7 +164,8 @@ router.post('/create', async (req, res) => {
     const welcomeEmailSent = await sendWelcomeEmailSafely({
       client: newClient,
       brandId: store.brandId,
-      normalizedEmail
+      normalizedEmail,
+      defaultPassword
     })
 
     res.status(201).json({
@@ -271,13 +279,14 @@ router.get('/brand/:brandId', async (req, res) => {
   try {
     const { brandId } = req.params;
 
-    const clients = await Client.find({ brandId }).select('-password').sort({ createdAt: -1 });
+    const clients = await Client.find({ brandId }).select('-password').sort({ createdAt: -1 }).lean();
+    const context = await getClientsOperationalContext(clients.map((client) => client._id));
 
     res.status(200).json({
       message: 'Clientes de la marca obtenidos exitosamente',
       brandId: brandId,
       count: clients.length,
-      clients: clients
+      clients: clients.map((client) => ({ ...client, ...context[client._id] }))
     });
 
   } catch (error) {

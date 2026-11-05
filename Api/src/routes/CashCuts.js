@@ -3,6 +3,7 @@ import CashCut from "../models/CashCut.js"
 import Sale from "../models/Sale.js"
 import SubscriptionAssignment from "../models/SubscriptionAssignment.js"
 import Expense from "../models/Expense.js"
+import { expireStaleCashCuts } from "../services/CashCut.services.js"
 
 const router = express.Router()
 
@@ -93,6 +94,8 @@ router.post('/open', async (req, res) => {
         message: 'storeId es requerido'
       })
     }
+
+    await expireStaleCashCuts({ staffId })
 
     const existingOpenCashCut = await CashCut.findOne({
       staffId: staffId,
@@ -286,6 +289,8 @@ router.patch('/update/:id', async (req, res) => {
 router.get('/open/:userId', async (req, res) => {
   try {
     const { userId } = req.params
+    await expireStaleCashCuts({ staffId: userId })
+
     const brandId = req.headers['x-brand-id'] || req.query.brandId
     const storeId = req.headers['x-store-id'] || req.query.storeId
     const filters = {

@@ -30,8 +30,7 @@ router.post('/create', async (req, res) => {
     // Crear la nueva página
     const newPage = new Page({
       name,
-      path,
-      modules: []
+      path
     });
 
     await newPage.save();
@@ -39,7 +38,6 @@ router.post('/create', async (req, res) => {
     // Crear módulos si se proporcionaron
     if (moduleTypes && Array.isArray(moduleTypes) && moduleTypes.length > 0) {
       const validTypes = ['read', 'create', 'delete', 'update'];
-      const moduleIds = [];
 
       for (const type of moduleTypes) {
         if (!validTypes.includes(type)) {
@@ -55,17 +53,12 @@ router.post('/create', async (req, res) => {
         });
 
         await newModule.save();
-        moduleIds.push(newModule._id);
       }
-
-      // Actualizar la página con los IDs de los módulos
-      newPage.modules = moduleIds;
-      await newPage.save();
     }
 
     // Obtener la página con módulos poblados
     const pageWithModules = await Page.findById(newPage._id);
-    const modules = await Module.find({ _id: { $in: pageWithModules.modules } });
+    const modules = await Module.find({ pageId: newPage._id });
 
     res.status(201).json({ 
       message: 'Página creada exitosamente',
@@ -186,7 +179,7 @@ router.put('/update/:id', async (req, res) => {
     await page.save();
 
     // Obtener módulos asociados
-    const modules = await Module.find({ _id: { $in: page.modules } });
+    const modules = await Module.find({ pageId: page._id });
 
     res.status(200).json({
       message: 'Página actualizada exitosamente',
@@ -219,7 +212,7 @@ router.delete('/delete/:id', async (req, res) => {
     }
 
     // Eliminar todos los módulos asociados
-    await Module.deleteMany({ _id: { $in: page.modules } });
+    await Module.deleteMany({ pageId: page._id });
 
     // Eliminar la página
     await Page.findByIdAndDelete(id);
@@ -260,7 +253,6 @@ router.post('/addModules/:id', async (req, res) => {
     }
 
     const validTypes = ['read', 'create', 'delete', 'update'];
-    const moduleIds = [];
 
     // Crear los nuevos módulos
     for (const type of moduleTypes) {
@@ -288,15 +280,10 @@ router.post('/addModules/:id', async (req, res) => {
       });
 
       await newModule.save();
-      moduleIds.push(newModule._id);
     }
 
-    // Agregar los nuevos módulos al array de la página
-    page.modules = [...page.modules, ...moduleIds];
-    await page.save();
-
     // Obtener módulos actualizados
-    const modules = await Module.find({ _id: { $in: page.modules } });
+    const modules = await Module.find({ pageId: page._id });
 
     res.status(201).json({
       message: 'Módulos agregados exitosamente',
@@ -345,15 +332,11 @@ router.delete('/removeModule/:pageId/:moduleId', async (req, res) => {
       });
     }
 
-    // Eliminar el módulo del array de la página
-    page.modules = page.modules.filter(id => id !== moduleId);
-    await page.save();
-
     // Eliminar el módulo
     await Module.findByIdAndDelete(moduleId);
 
     // Obtener módulos restantes
-    const modules = await Module.find({ _id: { $in: page.modules } });
+    const modules = await Module.find({ pageId: page._id });
 
     res.status(200).json({
       message: 'Módulo eliminado exitosamente',

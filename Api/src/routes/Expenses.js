@@ -3,6 +3,7 @@ import Expense from "../models/Expense.js"
 import Staff from "../models/Staff.js"
 import Store from "../models/Store.js"
 import { linkExpenseToCashCut } from "./CashCuts.js"
+import { assertUsableCashCut, sendCashCutError } from "../services/CashCut.services.js"
 
 const router = express.Router()
 
@@ -84,6 +85,10 @@ router.post('/create', async (req, res) => {
 			return res.status(404).json({ message: 'Usuario no encontrado' })
 		}
 
+		if (linkToCashCut) {
+			await assertUsableCashCut(cashCutId, { storeId })
+		}
+
 		const expense = new Expense({
 			brandId,
 			storeId,
@@ -120,6 +125,10 @@ router.post('/create', async (req, res) => {
 			cashCutLinked,
 		})
 	} catch (error) {
+		if (error.code?.startsWith?.('CASH_CUT_')) {
+			return sendCashCutError(res, error)
+		}
+
 		console.error('Error al crear gasto:', error)
 		return res.status(500).json({
 			message: 'Error al crear gasto',

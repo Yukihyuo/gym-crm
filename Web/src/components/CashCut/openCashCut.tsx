@@ -40,7 +40,13 @@ export function OpenCashCut({ onSuccess }: OpenCashCutProps) {
 	}
 
 	return (
-		<div className="space-y-4">
+		<form
+			className="space-y-4"
+			onSubmit={(event) => {
+				event.preventDefault()
+				void handleOpen()
+			}}
+		>
 			<div className="space-y-2">
 				<Label htmlFor="initialCash">Monto inicial</Label>
 				<Input
@@ -50,16 +56,17 @@ export function OpenCashCut({ onSuccess }: OpenCashCutProps) {
 					step="0.01"
 					value={initialCash}
 					onChange={(event) => setInitialCash(event.target.value)}
+					onFocus={(event) => event.target.select()}
 					disabled={submitting}
 					placeholder="0"
 				/>
 			</div>
 
 			<div className="flex justify-end gap-2">
-				<Button onClick={handleOpen} disabled={submitting}>
+				<Button type="submit" disabled={submitting}>
 					{submitting ? "Abriendo..." : "Abrir caja"}
 				</Button>
 			</div>
-		</div>
+		</form>
 	)
 }

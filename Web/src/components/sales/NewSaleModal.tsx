@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react"
-import { useNavigate } from "react-router-dom"
+import { useLocation, useNavigate } from "react-router-dom"
 import axios from "axios"
 import { toast } from "react-toastify"
 import {
@@ -36,6 +36,8 @@ import { API_ENDPOINTS, API_URL } from "@/config/api"
 import { useAuthStore } from "@/store/authStore"
 import { useBrandConfigStore } from "@/store/brandConfigStore"
 import { useCashCutStore } from "@/store/cashCutStore"
+import { useCashGate } from "@/components/CashCut/useCashGate"
+import { resolveCashCutConflict } from "@/components/CashCut/cashCutConflict"
 import {
   Command,
   CommandEmpty,
@@ -54,21 +56,12 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer"
+import type { Product } from "@/lib/product"
 
 interface ClientOption {
   value: string
   label: string
   subtitle?: string
-}
-
-interface Product {
-  _id: string
-  name: string
-  price: number
-  stock: number
-  category: string
-  imageUrl?: string | null
-  status: string
 }
 
 interface SaleItem {
@@ -87,6 +80,7 @@ interface NewSaleModalProps {
 export function NewSaleModal({ onSuccess }: NewSaleModalProps) {
   type CatalogView = "grid" | "list"
 
+  const presetClient = (useLocation().state as { client?: { value: string; label: string } } | null)?.client
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [clients, setClients] = useState<ClientOption[]>([])
@@ -111,8 +105,8 @@ export function NewSaleModal({ onSuccess }: NewSaleModalProps) {
   const activeStoreId = useAuthStore((state) => state.getActiveStoreId())
   const brandId = useAuthStore((state) => state.getBrandId())
   const token = useAuthStore((state) => state.token)
-  const requireCashClosing = useBrandConfigStore((state) => state.config?.requireCashClosing ?? false)
   const cashCutId = useCashCutStore((state) => state.cashCutId)
+  const { requiresCash, ensureCash, cashGateDialog } = useCashGate()
   const requireSaleUser = useBrandConfigStore((state) => state.config?.requireSaleUser ?? true)
   const defaultSaleUserId = useBrandConfigStore((state) => state.config?.userSaleDefault ?? null)
   const navigate = useNavigate()
@@ -166,6 +160,14 @@ export function NewSaleModal({ onSuccess }: NewSaleModalProps) {
     resetForm()
     setClientComboboxOpen(false)
   }, [fetchProducts, resetForm])
+
+  // Cliente que llega desde "Cobrar" en otro módulo; debe aplicarse después del reset.
+  useEffect(() => {
+    if (presetClient) {
+      setSelectedClientId(presetClient.value)
+      setSelectedClientLabel(presetClient.label)
+    }
+  }, [presetClient, resetForm])
 
   useEffect(() => {
     if (!brandId) {
@@ -386,8 +388,8 @@ export function NewSaleModal({ onSuccess }: NewSaleModalProps) {
       return
     }
 
-    if (requireCashClosing && !cashCutId) {
-      toast.error("Debes abrir la caja antes de registrar una venta.")
+    if (requiresCash) {
+      ensureCash(() => {})
       return
     }
 
@@ -441,13 +443,23 @@ export function NewSaleModal({ onSuccess }: NewSaleModalProps) {
       } else {
         toast.error("Error al crear la venta")
       }
+      // Si la caja ya no es válida, el efecto de abajo vuelve a pedir abrirla.
+      await resolveCashCutConflict(error)
     } finally {
       setIsLoading(false)
     }
   }
 
+  // Pide abrir la caja apenas se entra a vender, sin esperar a que falle el cobro.
+  useEffect(() => {
+    if (requiresCash) {
+      ensureCash(() => {})
+    }
+  }, [requiresCash, ensureCash])
+
   return (
     <div className="h-[calc(100vh-4rem)] min-h-0 overflow-hidden bg-background">
+      {cashGateDialog}
       <div className="flex h-full flex-col">
         <header className="shrink-0 border-b px-4 py-3 sm:px-6">
           <div className="flex items-center justify-between gap-3">
@@ -825,7 +837,7 @@ export function NewSaleModal({ onSuccess }: NewSaleModalProps) {
               <p className="truncate text-sm font-medium">{totalItems} {totalItems === 1 ? "item" : "items"}</p>
               <p className="text-lg font-bold">${total.toFixed(2)}</p>
             </div>
-            <Button type="button" onClick={() => setDrawerOpen(true)}>
+            <Button type="button" onClick={() => ensureCash(() => setDrawerOpen(true))}>
               Revisar y Cobrar
             </Button>
           </div>

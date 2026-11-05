@@ -14,6 +14,7 @@ import { useState } from "react"
 
 import { QrCode } from "lucide-react"
 import { ClientAccessFlowContent } from "./ClientAccessFlow"
+import { AccessResultDialog } from "./AccessResultDialog"
 import { useClientAccessFlow } from "./useClientAccessFlow"
 
 export function AccessClientModal() {
@@ -73,6 +74,13 @@ export function AccessClientModal() {
           )}
         </div>
       </DialogContent>
+
+      <AccessResultDialog
+        open={flow.accessDenied}
+        data={flow.deniedData}
+        onClose={flow.resetAccessFlow}
+        onRenewed={flow.retryAccessForClient}
+      />
     </Dialog>
   )
 }

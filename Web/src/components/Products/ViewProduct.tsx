@@ -6,35 +6,17 @@ import {
   DialogTitle,
 } from "../ui/dialog";
 import { Label } from "../ui/label";
-
-interface Product {
-  _id: string;
-  name: string;
-  price: number;
-  stock: number;
-  category: string;
-  status: "available" | "unavailable" | "discontinued";
-  createdAt?: string;
-  updatedAt?: string;
-}
+import {
+  getProductStatusBadge,
+  getProductStatusLabel,
+  type Product,
+} from "@/lib/product";
 
 interface ViewProductProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   product: Product | null;
 }
-
-const statusLabels: Record<string, string> = {
-  available: "Disponible",
-  unavailable: "No disponible",
-  discontinued: "Discontinuado",
-};
-
-const statusColors: Record<string, string> = {
-  available: "text-green-600 bg-green-50 border-green-200",
-  unavailable: "text-orange-600 bg-orange-50 border-orange-200",
-  discontinued: "text-red-600 bg-red-50 border-red-200",
-};
 
 export function ViewProduct({ open, onOpenChange, product }: ViewProductProps) {
   if (!product) return null;
@@ -107,12 +89,24 @@ export function ViewProduct({ open, onOpenChange, product }: ViewProductProps) {
               <Label className="text-muted-foreground text-sm">Estado</Label>
               <span
                 className={`inline-flex w-fit items-center rounded-md border px-3 py-1 text-sm font-medium ${
-                  statusColors[product.status] || "text-gray-600 bg-gray-50"
+                  getProductStatusBadge(product.status)
                 }`}
               >
-                {statusLabels[product.status] || product.status}
+                {getProductStatusLabel(product.status)}
               </span>
             </div>
+          </div>
+
+          {/* Código (SKU) */}
+          <div className="grid gap-2">
+            <Label className="text-muted-foreground text-sm">Código (SKU)</Label>
+            {product.sku ? (
+              <code className="w-fit rounded bg-muted px-2 py-1 text-sm font-semibold">
+                {product.sku}
+              </code>
+            ) : (
+              <p className="text-base font-medium text-muted-foreground">Sin SKU</p>
+            )}
           </div>
 
           {/* Divider */}

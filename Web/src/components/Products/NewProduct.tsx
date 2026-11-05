@@ -27,6 +27,7 @@ import {
 import { API_ENDPOINTS } from "../../config/api";
 import { useAuthStore } from "@/store/authStore";
 import { compressProductImage } from "@/lib/imageCompression";
+import { PRODUCT_CATEGORY_OPTIONS, type ProductFormValues } from "@/lib/product";
 
 const productSchema = z.object({
   name: z.string().min(1, "El nombre es requerido"),
@@ -34,15 +35,12 @@ const productSchema = z.object({
   stock: z.coerce.number().min(0, "El stock no puede ser negativo").default(0),
   category: z.string().min(1, "La categoría es requerida"),
   status: z.enum(["available", "unavailable", "discontinued"]).default("available"),
+  sku: z.string().trim().max(64, "El SKU no puede exceder 64 caracteres").optional(),
 });
-
-type ProductFormData = z.infer<typeof productSchema>;
 
 interface NewProductProps {
   onProductCreated?: () => void;
 }
-
-const categoryOptions = ["Suplementos", "Accesorios", "Bebidas", "Ropa", "Snacks", "Otros"];
 
 export function NewProduct({ onProductCreated }: NewProductProps) {
   const [open, setOpen] = useState(false);
@@ -58,7 +56,7 @@ export function NewProduct({ onProductCreated }: NewProductProps) {
     reset,
     watch,
     setValue,
-  } = useForm<ProductFormData>({
+  } = useForm<ProductFormValues>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(productSchema) as any,
     defaultValues: {
@@ -67,6 +65,7 @@ export function NewProduct({ onProductCreated }: NewProductProps) {
       stock: 0,
       category: "",
       status: "available",
+      sku: "",
     },
   });
 
@@ -115,7 +114,7 @@ export function NewProduct({ onProductCreated }: NewProductProps) {
     }
   };
 
-  const onSubmit = async (data: ProductFormData) => {
+  const onSubmit = async (data: ProductFormValues) => {
     setIsLoading(true);
     try {
       const formData = new FormData()
@@ -125,6 +124,9 @@ export function NewProduct({ onProductCreated }: NewProductProps) {
       formData.append("stock", String(data.stock))
       formData.append("category", data.category)
       formData.append("status", data.status)
+      if (data.sku) {
+        formData.append("sku", data.sku.trim().toUpperCase())
+      }
 
       if (imageFile) {
         formData.append("image", imageFile)
@@ -261,6 +263,21 @@ export function NewProduct({ onProductCreated }: NewProductProps) {
               {errors.name ? <span className="text-sm text-red-500">{errors.name.message}</span> : null}
             </div>
 
+            <div className="grid gap-2">
+              <Label htmlFor="sku">Código (SKU)</Label>
+              <Input
+                id="sku"
+                placeholder="Ej: SUP-WHEY-001"
+                className="uppercase"
+                {...register("sku")}
+              />
+              <p className="text-xs text-muted-foreground">
+                Opcional. Usa el <strong>mismo código</strong> en las distintas sucursales para
+                vincular el mismo producto y poder mover inventario entre ellas.
+              </p>
+              {errors.sku ? <span className="text-sm text-red-500">{errors.sku.message}</span> : null}
+            </div>
+
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label htmlFor="category">
@@ -273,11 +290,11 @@ export function NewProduct({ onProductCreated }: NewProductProps) {
                   {...register("category")}
                 />
                 <datalist id="product-categories">
-                  {categoryOptions.map((category) => (
+                  {PRODUCT_CATEGORY_OPTIONS.map((category) => (
                     <option key={category} value={category} />
                   ))}
                 </datalist>
-                {categoryValue && !categoryOptions.includes(categoryValue) ? (
+                {categoryValue && !PRODUCT_CATEGORY_OPTIONS.includes(categoryValue) ? (
                   <span className="text-xs text-muted-foreground">Se creará una categoría nueva.</span>
                 ) : null}
                 {errors.category ? <span className="text-sm text-red-500">{errors.category.message}</span> : null}

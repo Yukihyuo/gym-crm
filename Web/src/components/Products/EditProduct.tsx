@@ -26,6 +26,12 @@ import {
 import { API_ENDPOINTS } from "../../config/api";
 import { useAuthStore } from "@/store/authStore";
 import { compressProductImage } from "@/lib/imageCompression";
+import {
+  PRODUCT_CATEGORY_OPTIONS,
+  resolveProductImageUrl,
+  type Product,
+  type ProductFormValues,
+} from "@/lib/product";
 
 // Zod schema para validación
 const productSchema = z.object({
@@ -34,29 +40,8 @@ const productSchema = z.object({
   stock: z.coerce.number().min(0, "El stock no puede ser negativo"),
   category: z.string().min(1, "La categoría es requerida"),
   status: z.enum(["available", "unavailable", "discontinued"]),
+  sku: z.string().trim().max(64, "El SKU no puede exceder 64 caracteres").optional(),
 });
-
-type ProductFormData = z.infer<typeof productSchema>;
-
-const resolveProductImageUrl = (imageUrl: string | null | undefined) => {
-  if (!imageUrl) return "";
-  if (imageUrl.startsWith("blob:") || imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
-    return imageUrl;
-  }
-
-  const apiUrl = import.meta.env.VITE_API_URL || "";
-  return `${apiUrl.replace(/\/$/, "")}/${imageUrl.replace(/^\//, "")}`;
-};
-
-interface Product {
-  _id: string;
-  name: string;
-  price: number;
-  stock: number;
-  category: string;
-  imageUrl?: string | null;
-  status: "available" | "unavailable" | "discontinued";
-}
 
 interface EditProductProps {
   open: boolean;
@@ -77,8 +62,6 @@ export function EditProduct({
   const [imageFile, setImageFile] = useState<File | null>(null);
   const activeStoreId = useAuthStore((state) => state.getActiveStoreId());
 
-  const categoryOptions = ["Suplementos", "Accesorios", "Bebidas", "Ropa", "Snacks", "Otros"];
-
   const {
     register,
     handleSubmit,
@@ -86,7 +69,7 @@ export function EditProduct({
     reset,
     setValue,
     watch,
-  } = useForm<ProductFormData>({
+  } = useForm<ProductFormValues>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(productSchema) as any,
   });
@@ -143,6 +126,7 @@ export function EditProduct({
         stock: product.stock,
         category: product.category,
         status: product.status,
+        sku: product.sku ?? "",
       });
       setStatusValue(product.status);
       setValue("status", product.status);
@@ -151,7 +135,7 @@ export function EditProduct({
     }
   }, [product, reset, setValue]);
 
-  const onSubmit = async (data: ProductFormData) => {
+  const onSubmit = async (data: ProductFormValues) => {
     if (!product) return;
     if (!activeStoreId) {
       toast.error("No hay tienda activa seleccionada");
@@ -166,6 +150,7 @@ export function EditProduct({
       formData.append("stock", String(data.stock));
       formData.append("category", data.category);
       formData.append("status", data.status);
+      formData.append("sku", data.sku?.trim().toUpperCase() || "");
 
       if (imageFile) {
         formData.append("image", imageFile);
@@ -305,6 +290,24 @@ export function EditProduct({
               )}
             </div>
 
+            {/* SKU */}
+            <div className="grid gap-2">
+              <Label htmlFor="sku">Código (SKU)</Label>
+              <Input
+                id="sku"
+                placeholder="Ej: SUP-WHEY-001"
+                className="uppercase"
+                {...register("sku")}
+              />
+              <p className="text-xs text-muted-foreground">
+                Opcional. Usa el <strong>mismo código</strong> en las distintas sucursales para
+                vincular el mismo producto y poder mover inventario entre ellas.
+              </p>
+              {errors.sku && (
+                <span className="text-sm text-red-500">{errors.sku.message}</span>
+              )}
+            </div>
+
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label htmlFor="category">
@@ -317,11 +320,11 @@ export function EditProduct({
                   {...register("category")}
                 />
                 <datalist id="edit-product-categories">
-                  {categoryOptions.map((category) => (
+                  {PRODUCT_CATEGORY_OPTIONS.map((category) => (
                     <option key={category} value={category} />
                   ))}
                 </datalist>
-                {categoryValue && !categoryOptions.includes(categoryValue) ? (
+                {categoryValue && !PRODUCT_CATEGORY_OPTIONS.includes(categoryValue) ? (
                   <span className="text-xs text-muted-foreground">Se conservará como categoría personalizada.</span>
                 ) : null}
                 {errors.category ? (

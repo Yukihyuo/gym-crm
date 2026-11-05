@@ -30,20 +30,14 @@ import {
 import { toast } from 'react-toastify'
 import { useAuthStore } from '@/store/authStore'
 import ProtectedModule from '@/components/global/ProtectedModule'
-
-interface ProductData {
-  _id: string
-  name: string
-  price: number
-  stock: number
-  category: string
-  status: 'available' | 'unavailable' | 'discontinued'
-  createdAt?: string
-  updatedAt?: string
-}
+import {
+  getProductStatusBadge,
+  getProductStatusLabel,
+  type Product,
+} from '@/lib/product'
 
 export default function Page() {
-  const [products, setProducts] = useState<ProductData[]>([])
+  const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
@@ -52,7 +46,7 @@ export default function Page() {
   // Modal states
   const [viewOpen, setViewOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
-  const [selectedProduct, setSelectedProduct] = useState<ProductData | null>(null)
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const activeStoreId = useAuthStore((state) => state.getActiveStoreId())
 
   const asyncLoad = useCallback(async () => {
@@ -115,25 +109,27 @@ export default function Page() {
     }).format(amount)
   }
 
-  const statusLabels: Record<string, string> = {
-    available: "Disponible",
-    unavailable: "No disponible",
-    discontinued: "Discontinuado",
-  }
-
-  const statusColors: Record<string, string> = {
-    available: "bg-green-100 text-green-700 border-green-200",
-    unavailable: "bg-orange-100 text-orange-700 border-orange-200",
-    discontinued: "bg-red-100 text-red-700 border-red-200",
-  }
-
-  const columns: ColumnDef<ProductData>[] = [
+  const columns: ColumnDef<Product>[] = [
     {
       accessorKey: "name",
       header: "Nombre",
       cell: ({ row }) => (
         <div className="font-medium">{row.getValue("name")}</div>
       ),
+    },
+    {
+      accessorKey: "sku",
+      header: "SKU",
+      cell: ({ row }) => {
+        const sku = row.getValue("sku") as string | null | undefined
+        return sku ? (
+          <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-semibold">
+            {sku}
+          </code>
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        )
+      },
     },
     {
       accessorKey: "price",
@@ -178,10 +174,9 @@ export default function Page() {
         const status = row.getValue("status") as string
         return (
           <span
-            className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${statusColors[status] || "bg-gray-100 text-gray-700"
-              }`}
+            className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${getProductStatusBadge(status)}`}
           >
-            {statusLabels[status] || status}
+            {getProductStatusLabel(status)}
           </span>
         )
       },

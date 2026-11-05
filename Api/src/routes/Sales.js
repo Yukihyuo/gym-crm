@@ -7,6 +7,7 @@ import Store from '../models/Store.js';
 import Client from '../models/Client.js';
 import { updateCashCutWithDocument } from './CashCuts.js';
 import { getBrandSettings } from '../utils/brand.utils.js';
+import { assertUsableCashCut, sendCashCutError } from '../services/CashCut.services.js';
 
 const router = express.Router();
 
@@ -44,6 +45,12 @@ router.post('/create', async (req, res) => {
     const requireSaleUser = brandSettings?.requireSaleUser ?? true
     const defaultSaleUserId = brandSettings?.userSaleDefault ?? null
     const resolvedUserId = userId || defaultSaleUserId || null
+
+    const cashCutId = req.headers['x-cash-cut-id'];
+    await assertUsableCashCut(cashCutId, {
+      storeId,
+      required: brandSettings?.requireCashClosing ?? false,
+    });
 
     if (requireSaleUser && !resolvedUserId) {
       return res.status(400).json({ message: 'Se requiere userId para registrar la venta' })
@@ -160,7 +167,6 @@ router.post('/create', async (req, res) => {
     await sale.save();
 
     // Actualizar cash cut si existe el header X-Cash-Cut-Id
-    const cashCutId = req.headers['x-cash-cut-id'];
     if (cashCutId) {
       await updateCashCutWithDocument(cashCutId, 'sale', sale._id.toString(), {
         payment: sale.payment,
@@ -187,6 +193,10 @@ router.post('/create', async (req, res) => {
     });
 
   } catch (error) {
+    if (error.code?.startsWith?.('CASH_CUT_')) {
+      return sendCashCutError(res, error);
+    }
+
     console.error('Error al crear venta:', error);
     res.status(500).json({
       message: 'Error al crear la venta',

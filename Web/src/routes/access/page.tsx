@@ -167,9 +167,10 @@ export default function Page() {
       </div>
 
       <AccessResultDialog
-        open={accessGranted}
-        data={flow.accessData}
+        open={flow.accessGranted || flow.accessDenied}
+        data={flow.accessGranted ? flow.accessData : flow.deniedData}
         onClose={closeResponseModal}
+        onRenewed={flow.retryAccessForClient}
       />
     </div>
   )

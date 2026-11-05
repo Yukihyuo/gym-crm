@@ -159,15 +159,14 @@ router.delete('/delete/:id', async (req, res) => {
 
 // 1. Python pide su configuración usando su UUID
 router.get('/config/:uuid', async (req, res) => {
+  const uuid = req.params.uuid;
   try {
-    const terminal = await Terminal.findOne({ uuid: req.params.uuid })
-      .populate('deviceId');
+    const terminal = await Terminal.findOne({ uuid: uuid });
 
     if (!terminal) return res.status(404).json({ status: 'UNLINKED' });
 
     res.json({
-      status: 'LINKED',
-      config: terminal.deviceId // Aquí van VID, PID, Driver...
+      status: 'LINKED'
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -225,13 +224,5 @@ router.get('/check/:uuid', async (req, res) => {
   }
 });
 
-
-router.post('/save_finger_print', async (req, res) => {
-  const { terminal_id, finger_print } = req.body;
-
-  console.log(finger_print)
-
-  res.status(200).json({ message: 'Huella dactilar recibida', terminal_id, finger_print });
-})
 
 export const routeConfig = { path: "/v1/terminals", router }

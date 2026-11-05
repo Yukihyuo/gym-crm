@@ -13,7 +13,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import type { AccessResultPayload } from "../Clients/accessResult"
-import { normalizeAccessResult } from "../Clients/accessResult"
+import { isRenewableDenial, normalizeAccessResult } from "../Clients/accessResult"
+import { requestAccessByClientId } from "../Clients/clientAccessApi"
 
 interface TerminalOption {
   _id: string
@@ -115,7 +116,8 @@ export function ActiveTerminalSelector() {
   }, [isConnected, onEventWithData, socket])
 
   useEffect(() => {
-    if (!accessGranted) {
+    // Un rechazo renovable espera a que el empleado decida; el resto se cierra solo.
+    if (!accessGranted || isRenewableDenial(accessData)) {
       return
     }
 
@@ -125,11 +127,15 @@ export function ActiveTerminalSelector() {
     }, 5000)
 
     return () => window.clearTimeout(autoCloseTimeout)
-  }, [accessGranted])
+  }, [accessGranted, accessData])
 
   const closeResponseModal = () => {
     setAccessGranted(false)
     setAccessData(null)
+  }
+
+  const registerAccessAfterRenewal = async (clientId: string) => {
+    setAccessData(await requestAccessByClientId(clientId))
   }
 
   return (
@@ -157,6 +163,7 @@ export function ActiveTerminalSelector() {
         open={accessGranted}
         data={accessData}
         onClose={closeResponseModal}
+        onRenewed={registerAccessAfterRenewal}
       />
     </div>
   )

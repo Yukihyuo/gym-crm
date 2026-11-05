@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 
 
 import SubscriptionAssignment from "../models/SubscriptionAssignment.js"
-import CashCut from "../models/CashCut.js"
+import { expireStaleCashCuts } from "./CashCut.services.js"
 
 
 cron.schedule('05 1 * * *', async () => {
@@ -45,28 +45,15 @@ cron.schedule('05 1 * * *', async () => {
 
 //Crea cronjob aquí
 
-cron.schedule('47 18 * * *', async () => {
+cron.schedule('10 0 * * *', async () => {
   const ahora = dayjs()
   console.log(`[Cron-CashCut] Ejecutando cierre automático: ${ahora.format('YYYY-MM-DD HH:mm:ss')}`)
 
   try {
-    const hoyInicio = ahora.startOf('day').toDate()
+    const cerradas = await expireStaleCashCuts()
 
-    const resultado = await CashCut.updateMany(
-      {
-        status: 'pending',
-        openingDate: { $lt: hoyInicio }
-      },
-      {
-        $set: {
-          status: 'incomplete',
-          closingDate: ahora.toDate()
-        }
-      }
-    )
-
-    if (resultado.modifiedCount > 0) {
-      console.log(`[Cron-CashCut] Éxito: Se cerraron ${resultado.modifiedCount} cajas como incompletas.`)
+    if (cerradas > 0) {
+      console.log(`[Cron-CashCut] Éxito: Se cerraron ${cerradas} cajas como incompletas.`)
     } else {
       console.log('[Cron-CashCut] Sin cajas pendientes para cerrar automáticamente.')
     }

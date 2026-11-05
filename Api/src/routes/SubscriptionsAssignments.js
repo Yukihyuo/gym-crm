@@ -6,6 +6,8 @@ import Client from "../models/Client.js"
 import Store from "../models/Store.js"
 import Subscription from "../models/Subscription.js"
 import { updateCashCutWithDocument } from "./CashCuts.js";
+import { getBrandSettings } from "../utils/brand.utils.js";
+import { assertUsableCashCut, sendCashCutError } from "../services/CashCut.services.js";
 import {
   buildSubscriptionsError,
   createSubscriptionAssignment,
@@ -21,6 +23,14 @@ router.post('/create', async (req, res) => {
   try {
     const { clientId, storeId, planId, paymentMethod } = req.body;
 
+    const cashCutId = req.headers['x-cash-cut-id'];
+    const store = storeId ? await Store.findById(storeId) : null;
+    const brandSettings = store ? await getBrandSettings(store.brandId) : {};
+    await assertUsableCashCut(cashCutId, {
+      storeId,
+      required: brandSettings?.requireCashClosing ?? false,
+    });
+
     const { assignment, queued } = await createSubscriptionAssignment({
       clientId,
       storeId,
@@ -28,7 +38,6 @@ router.post('/create', async (req, res) => {
       paymentMethod
     })
 
-    const cashCutId = req.headers['x-cash-cut-id'];
     if (cashCutId) {
       await updateCashCutWithDocument(cashCutId, 'subscription', assignment._id.toString(), {
         paymentMethod: assignment.paymentMethod,
@@ -47,6 +56,10 @@ router.post('/create', async (req, res) => {
     });
   } catch (error) {
     console.error('Error en create:', error);
+
+    if (error.code?.startsWith?.('CASH_CUT_')) {
+      return sendCashCutError(res, error);
+    }
 
     if (error.statusCode) {
       return res.status(error.statusCode).json({

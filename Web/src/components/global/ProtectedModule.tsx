@@ -1,44 +1,15 @@
-import { useAuthStore } from '@/store/authStore';
-import { useModulesStore } from '@/store/modulesStore';
-import React, { useMemo } from 'react'
+import React from 'react'
+import { useModuleAccess, type ModuleAccessType } from '@/hooks/use-module-access'
 
 type Props = {
   children: React.ReactNode;
   page: string;
-  type?: "read" | "create" | "delete" | "update";
+  type?: ModuleAccessType;
   method: "hide" | "block";
 }
 
-interface Module {
-  _id?: string
-  id?: string
-  pageId: string
-  page: string
-  type: "read" | "create" | "delete" | "update"
-}
-
 export default function ProtectedModule({ children, page, type, method }: Props) {
-  const modules = useModulesStore((state) => state.modules as Module[])
-  const userModules = useAuthStore((state) => state.access?.permissions ?? [])
-
-  const hasAccess = useMemo(() => {
-    if (!userModules.length || !modules.length) {
-      return false
-    }
-
-    const pageModules = modules.filter((mod) => mod.page === page && (type ? mod.type === type : true))
-    if (!pageModules.length) {
-      return false
-    }
-
-    const ids = new Set(
-      pageModules
-        .map((mod) => mod._id ?? mod.id)
-        .filter((value): value is string => Boolean(value))
-    )
-
-    return userModules.some((modId) => ids.has(modId))
-  }, [modules, page, type, userModules])
+  const hasAccess = useModuleAccess(page, type)
 
   if (!hasAccess && method === "hide") {
     return null

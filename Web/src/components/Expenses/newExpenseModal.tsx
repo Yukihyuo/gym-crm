@@ -29,6 +29,7 @@ import {
 } from '@/lib/expenses'
 import { useAuthStore } from '@/store/authStore'
 import { useCashCutStore } from '@/store/cashCutStore'
+import { resolveCashCutConflict } from '@/components/CashCut/cashCutConflict'
 
 interface NewExpenseModalProps {
   onSuccess?: () => void
@@ -136,6 +137,7 @@ export default function NewExpenseModal({ onSuccess, trigger }: NewExpenseModalP
           : 'Error al crear gasto'
 
       toast.error(message)
+      await resolveCashCutConflict(error)
     } finally {
       setLoading(false)
     }

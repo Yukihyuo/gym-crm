@@ -2,8 +2,9 @@ import { PageHeader } from '@/components/global/PageHeader'
 import { Button } from '@/components/ui/button'
 import { API_ENDPOINTS } from '@/config/api'
 import axios from 'axios'
-import { User, MoreHorizontal, Trash2, Mail, Phone, ShieldCheck } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { User, MoreHorizontal, Trash2, Wallet, Search } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import {
   useReactTable,
@@ -13,12 +14,12 @@ import {
   getFilteredRowModel,
   flexRender,
   type ColumnDef,
+  type FilterFn,
   type SortingState,
   type ColumnFiltersState,
 } from '@tanstack/react-table'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { useIsMobile } from '@/hooks/use-mobile'
 import {
   DropdownMenu,
@@ -29,11 +30,23 @@ import {
 } from "@/components/ui/dropdown-menu"
 
 import { useAuthStore } from "@/store/authStore"
+import { ChargeFlow, type ChargeClient } from '@/components/charge/ChargeFlow'
+import { useCashGate } from '@/components/CashCut/useCashGate'
 import NewClientModal from '@/components/Clients/NewClientModal'
 import DetailsClientModal from '@/components/Clients/DetailsClientModal'
 import RegisterFingerprintModal from '@/components/Clients/RegisterFingerprintModal'
 import ViewClientDiets from '@/components/diets/ViewClientDiets'
 import ProtectedModule from '@/components/global/ProtectedModule'
+import { ClientIdentity, MembershipStatus } from '@/components/Clients/ClientSummary'
+import {
+  MEMBERSHIP_FILTERS,
+  formatLastVisit,
+  matchesMembershipFilter,
+  needsRenewal,
+  normalizeText,
+  type ClientMembership,
+  type MembershipFilter,
+} from '@/components/Clients/clientMembership'
 
 
 
@@ -57,6 +70,30 @@ interface UserData {
   status: boolean
   assignments?: Assignment[]
   createdAt?: string
+  membership?: ClientMembership
+  lastVisitAt?: string | null
+}
+
+type ChargeTarget = { client: ChargeClient; startWith?: 'membership' }
+
+const getFullName = (user: UserData) => `${user.profile.names} ${user.profile.lastNames}`.trim()
+
+// Busca por nombre, usuario, correo, teléfono o plan, sin importar acentos ni orden de las palabras.
+const clientSearchFilter: FilterFn<UserData> = (row, _columnId, value) => {
+  const haystack = normalizeText(
+    [
+      getFullName(row.original),
+      row.original.username,
+      row.original.email,
+      row.original.profile.phone,
+      row.original.membership?.planName,
+    ].filter(Boolean).join(' ')
+  )
+
+  return normalizeText(String(value ?? ''))
+    .split(/\s+/)
+    .filter(Boolean)
+    .every((token) => haystack.includes(token))
 }
 
 export default function Page() {
@@ -65,9 +102,42 @@ export default function Page() {
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')
+  const [searchParams] = useSearchParams()
+  const [membershipFilter, setMembershipFilter] = useState<MembershipFilter>(() => {
+    const requested = searchParams.get('membership')
+    return MEMBERSHIP_FILTERS.find(({ value }) => value === requested)?.value ?? 'all'
+  })
+  const [chargeTarget, setChargeTarget] = useState<ChargeTarget | null>(null)
+  const [detailsClientId, setDetailsClientId] = useState<string | null>(null)
+  const { ensureCash, cashGateDialog } = useCashGate()
   const isMobile = useIsMobile()
 
   const brandId = useAuthStore((state) => state.getBrandId())
+
+  const filterCounts = useMemo(
+    () =>
+      Object.fromEntries(
+        MEMBERSHIP_FILTERS.map(({ value }) => [
+          value,
+          users.filter((user) => matchesMembershipFilter(user.membership, value)).length,
+        ])
+      ) as Record<MembershipFilter, number>,
+    [users]
+  )
+
+  const visibleUsers = useMemo(
+    () => users.filter((user) => matchesMembershipFilter(user.membership, membershipFilter)),
+    [users, membershipFilter]
+  )
+
+  const repeatedNames = useMemo(() => {
+    const counts = new Map<string, number>()
+    users.forEach((user) => {
+      const key = normalizeText(getFullName(user))
+      counts.set(key, (counts.get(key) ?? 0) + 1)
+    })
+    return new Set([...counts].filter(([, count]) => count > 1).map(([name]) => name))
+  }, [users])
 
   const asyncLoad = useCallback(async () => {
     setLoading(true)
@@ -101,102 +171,111 @@ export default function Page() {
 
   const columns: ColumnDef<UserData>[] = [
     {
-      accessorKey: "username",
-      header: "Usuario",
+      id: "client",
+      header: "Socio",
+      accessorFn: (row) => getFullName(row),
       cell: ({ row }) => (
-        <div className="font-medium">{row.getValue("username")}</div>
+        <ClientIdentity
+          names={row.original.profile.names}
+          lastNames={row.original.profile.lastNames}
+          username={row.original.username}
+          email={row.original.email}
+          phone={row.original.profile.phone}
+          active={row.original.status}
+          isNameRepeated={repeatedNames.has(normalizeText(getFullName(row.original)))}
+        />
       ),
     },
     {
-      id: "fullName",
-      header: "Nombre Completo",
-      accessorFn: (row) => `${row.profile.names} ${row.profile.lastNames}`,
-      cell: ({ row }) => (
-        <div>{row.original.profile.names} {row.original.profile.lastNames}</div>
-      ),
+      id: "membership",
+      header: "Membresía",
+      accessorFn: (row) => row.membership?.state ?? "none",
+      cell: ({ row }) => <MembershipStatus membership={row.original.membership} />,
     },
     {
-      accessorKey: "email",
-      header: "Email",
+      id: "lastVisit",
+      header: "Última visita",
+      accessorFn: (row) => row.lastVisitAt ?? "",
       cell: ({ row }) => (
-        <div className="lowercase">{row.getValue("email")}</div>
-      ),
-    },
-    {
-      accessorKey: "profile.phone",
-      header: "Teléfono",
-      cell: ({ row }) => (
-        <div>{row.original.profile.phone || "N/A"}</div>
-      ),
-    },
-    {
-      accessorKey: "status",
-      header: "Estado",
-      cell: ({ row }) => (
-        <div className="flex items-center">
-          <span
-            className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${row.getValue("status")
-              ? "bg-green-100 text-green-700"
-              : "bg-red-100 text-red-700"
-              }`}
-          >
-            {row.getValue("status") ? "Activo" : "Inactivo"}
-          </span>
-        </div>
+        <span className="text-sm text-muted-foreground">{formatLastVisit(row.original.lastVisitAt)}</span>
       ),
     },
     {
       id: "actions",
       header: "Acciones",
       cell: ({ row }) => {
+        const client = {
+          value: row.original._id,
+          label: getFullName(row.original),
+        }
+        const renewal = needsRenewal(row.original.membership)
+
         return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm">
-                <MoreHorizontal className="h-4 w-4" />
+          <div className="flex items-center justify-end gap-2">
+            <ProtectedModule page="Clients" type="read" method="hide">
+              <Button
+                size="sm"
+                variant={renewal ? "default" : "outline"}
+                className="h-10 min-w-24 gap-1.5"
+                onClick={() =>
+                  ensureCash(() =>
+                    setChargeTarget({ client, startWith: renewal ? "membership" : undefined })
+                  )
+                }
+              >
+                <Wallet className="h-4 w-4" />
+                {renewal ? "Renovar" : "Cobrar"}
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <ProtectedModule page="Clients" type="read" method="hide">
-                <DetailsClientModal clientId={row.original._id} onClientUpdated={asyncLoad} />
-              </ProtectedModule>
+            </ProtectedModule>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-10 w-10 p-0" aria-label="Más acciones">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <ProtectedModule page="Clients" type="read" method="hide">
+                  <DetailsClientModal clientId={row.original._id} onClientUpdated={asyncLoad} />
+                </ProtectedModule>
 
-              <ProtectedModule page="Clients" type="read" method="hide">
-                <ViewClientDiets clientId={row.original._id} />
-              </ProtectedModule>
-              {
-                row.original.fingerprint ? (null) : (
-                  <ProtectedModule page="Clients" type="read" method="hide">
-                    <RegisterFingerprintModal
-                      clientId={row.original._id}
-                      onRegistered={asyncLoad}
-                    />
-                  </ProtectedModule>
-                )
-              }
+                <ProtectedModule page="Clients" type="read" method="hide">
+                  <ViewClientDiets clientId={row.original._id} />
+                </ProtectedModule>
+                {
+                  row.original.fingerprint ? (null) : (
+                    <ProtectedModule page="Clients" type="read" method="hide">
+                      <RegisterFingerprintModal
+                        clientId={row.original._id}
+                        onRegistered={asyncLoad}
+                      />
+                    </ProtectedModule>
+                  )
+                }
 
-              <DropdownMenuSeparator />
-              <ProtectedModule page="Clients" type="delete" method="hide">
-                <div
-                  className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 text-red-600 hover:bg-red-50"
-                  onClick={() => handleDelete(row.original._id)}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Eliminar
-                </div>
-              </ProtectedModule>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <DropdownMenuSeparator />
+                <ProtectedModule page="Clients" type="delete" method="hide">
+                  <div
+                    className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 text-red-600 hover:bg-red-50"
+                    onClick={() => handleDelete(row.original._id)}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Eliminar
+                  </div>
+                </ProtectedModule>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         )
       },
     },
   ]
 
   const table = useReactTable({
-    data: users,
+    data: visibleUsers,
     columns,
+    globalFilterFn: clientSearchFilter,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -229,12 +308,41 @@ export default function Page() {
           <ProtectedModule page="Clients" type="create" method="hide">
             <NewClientModal onSuccess={asyncLoad} />
           </ProtectedModule>
-          <Input
-            placeholder="Buscar clientes..."
-            value={globalFilter ?? ""}
-            onChange={(event) => setGlobalFilter(String(event.target.value))}
-            className="w-full sm:max-w-sm"
-          />
+          <div className="relative w-full sm:max-w-md">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nombre, teléfono, usuario, correo o plan..."
+              value={globalFilter ?? ""}
+              onChange={(event) => setGlobalFilter(String(event.target.value))}
+              className="h-11 w-full pl-9"
+              autoFocus={!isMobile}
+            />
+          </div>
+        </div>
+
+        {/* Filtros por estado de membresía */}
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar por membresía">
+          {MEMBERSHIP_FILTERS.map(({ value, label }) => {
+            const selected = membershipFilter === value
+
+            return (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => setMembershipFilter(value)}
+                className={`inline-flex h-10 items-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${selected
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "bg-card text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                  }`}
+              >
+                {label}
+                <span className={`rounded-full px-1.5 text-xs ${selected ? "bg-primary-foreground/20" : "bg-muted"}`}>
+                  {filterCounts[value]}
+                </span>
+              </button>
+            )
+          })}
         </div>
 
         {/* Datos */}
@@ -249,59 +357,24 @@ export default function Page() {
                 const actionsCell = row.getVisibleCells().find((cell) => cell.column.id === "actions")
 
                 return (
-                  <Card key={row.id} className="bg-card rounded-xl border border-border/60 shadow-sm p-4 space-y-3 hover:shadow-md transition-shadow">
-                    <div className="flex items-start gap-3">
-                      <Avatar className="h-10 w-10 shrink-0">
-                        <AvatarFallback>
-                          {row.original.profile.names?.[0]?.toUpperCase() || <User className="h-4 w-4" />}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate font-semibold text-base text-card-foreground">
-                          {row.original.profile.names} {row.original.profile.lastNames}
-                        </div>
-                        <div className="truncate text-xs text-muted-foreground">@{row.original.username}</div>
+                  <Card
+                    key={row.id}
+                    className="bg-card rounded-xl border border-border/60 shadow-sm p-4 space-y-3 transition-shadow hover:shadow-md cursor-pointer"
+                    onClick={() => setDetailsClientId(row.original._id)}
+                  >
+                    <div className="min-w-0">
+                      {flexRender(row.getVisibleCells()[0].column.columnDef.cell, row.getVisibleCells()[0].getContext())}
+                    </div>
+                    <div className="flex items-start justify-between gap-3 border-t border-border/60 pt-3">
+                      <div className="space-y-1">
+                        <MembershipStatus membership={row.original.membership} />
+                        <p className="text-xs text-muted-foreground">
+                          Última visita: {formatLastVisit(row.original.lastVisitAt)}
+                        </p>
                       </div>
-                      <div className="flex shrink-0 items-center gap-1">
-                        <span
-                          className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${row.original.status
-                            ? "bg-green-100 text-green-700"
-                            : "bg-red-100 text-red-700"
-                            }`}
-                        >
-                          {row.original.status ? "Activo" : "Inactivo"}
-                        </span>
+                      <div className="shrink-0" onClick={(event) => event.stopPropagation()}>
                         {actionsCell ? flexRender(actionsCell.column.columnDef.cell, actionsCell.getContext()) : null}
                       </div>
-                    </div>
-                    <div className="space-y-2 border-t border-border/60 pt-3">
-                      {row.original.email ? (
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Mail className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                          <span className="break-all">{row.original.email}</span>
-                        </div>
-                      ) : null}
-                      {row.original.profile.phone ? (
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Phone className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                          <span>{row.original.profile.phone}</span>
-                        </div>
-                      ) : null}
-                      {row.original.assignments?.length ? (
-                        <div className="flex items-start gap-2 text-xs text-muted-foreground">
-                          <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                          <div className="flex flex-wrap gap-1">
-                            {row.original.assignments.map((assignment) => (
-                              <span
-                                key={assignment.id || assignment.roleName}
-                                className="inline-flex items-center rounded-full bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
-                              >
-                                {assignment.roleName}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      ) : null}
                     </div>
                   </Card>
                 )
@@ -345,10 +418,21 @@ export default function Page() {
                   table.getRowModel().rows.map((row) => (
                     <tr
                       key={row.id}
-                      className="border-b transition-colors hover:bg-muted/50"
+                      tabIndex={0}
+                      className="cursor-pointer border-b transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none"
+                      onClick={() => setDetailsClientId(row.original._id)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" && event.target === event.currentTarget) {
+                          setDetailsClientId(row.original._id)
+                        }
+                      }}
                     >
                       {row.getVisibleCells().map((cell) => (
-                        <td key={cell.id} className="p-4 align-middle">
+                        <td
+                          key={cell.id}
+                          className="p-4 align-middle"
+                          onClick={cell.column.id === "actions" ? (event) => event.stopPropagation() : undefined}
+                        >
                           {flexRender(
                             cell.column.columnDef.cell,
                             cell.getContext()
@@ -398,6 +482,23 @@ export default function Page() {
           </div>
         </div>
       </div>
+
+      <ChargeFlow
+        open={chargeTarget !== null}
+        onOpenChange={(nextOpen) => !nextOpen && setChargeTarget(null)}
+        client={chargeTarget?.client}
+        startWith={chargeTarget?.startWith}
+        onCompleted={asyncLoad}
+      />
+      {detailsClientId ? (
+        <DetailsClientModal
+          clientId={detailsClientId}
+          onClientUpdated={asyncLoad}
+          open
+          onOpenChange={(nextOpen) => !nextOpen && setDetailsClientId(null)}
+        />
+      ) : null}
+      {cashGateDialog}
     </div>
   )
 }

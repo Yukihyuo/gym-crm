@@ -1,5 +1,6 @@
 import { AppSidebar } from "@/components/layout/app-sidebar"
 import { ActiveTerminalSelector } from "@/components/layout/ActiveTerminalSelector"
+import { QuickChargeButton } from "@/components/charge/QuickChargeButton"
 import { useAuthStore } from "@/store/authStore"
 import { useBrandConfigStore } from "@/store/brandConfigStore"
 import {
@@ -18,8 +19,11 @@ import {
 } from "@/components/ui/sidebar"
 import { useEffect } from "react"
 import { Outlet } from "react-router-dom"
+import { useCashCutSync } from "@/components/CashCut/useCashCutSync"
 
 export default function Layout({ children }: { children?: React.ReactNode }) {
+  useCashCutSync()
+
   const brandId = useAuthStore((state) => state.getBrandId())
   const fetchConfig = useBrandConfigStore((state) => state.fetchConfig)
   const clearConfig = useBrandConfigStore((state) => state.clearConfig)
@@ -65,7 +69,8 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
             </Breadcrumb>
           </div>
           <div className="flex grow bg-amber-300"></div>
-          <div>
+          <div className="flex items-center gap-2 pr-2">
+            <QuickChargeButton />
             <ActiveTerminalSelector />
           </div>
         </header>
