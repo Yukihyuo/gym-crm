@@ -20,6 +20,7 @@ import {
 import { useEffect } from "react"
 import { Outlet } from "react-router-dom"
 import { useCashCutSync } from "@/components/CashCut/useCashCutSync"
+import { CashStatusIndicator } from "@/components/CashCut/CashStatusIndicator"
 
 export default function Layout({ children }: { children?: React.ReactNode }) {
   useCashCutSync()
@@ -68,8 +69,9 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
               </BreadcrumbList>
             </Breadcrumb>
           </div>
-          <div className="flex grow bg-amber-300"></div>
-          <div className="flex items-center gap-2 pr-2">
+          <div className="grow" />
+          <div className="flex min-w-0 items-center gap-2 pr-2">
+            <CashStatusIndicator />
             <QuickChargeButton />
             <ActiveTerminalSelector />
           </div>

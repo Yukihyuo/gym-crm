@@ -15,7 +15,7 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --test",
     "start": "nodemon --env-file=.env index.js",
     "dev": "nodemon index.js",
     "seed": "node --env-file=.env src/utils/seeder.js",

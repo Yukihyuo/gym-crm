@@ -1,8 +1,9 @@
 import { PageHeader } from '@/components/global/PageHeader'
 import { Button } from '@/components/ui/button'
+import { RowActionsButton } from "@/components/ui/row-actions-button"
 import { API_ENDPOINTS } from '@/config/api'
 import axios from 'axios'
-import { User, MoreHorizontal, Trash2, Wallet, Search } from 'lucide-react'
+import { User, Trash2, Wallet, Search } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
@@ -19,6 +20,7 @@ import {
   type ColumnFiltersState,
 } from '@tanstack/react-table'
 import { Input } from '@/components/ui/input'
+import { DataTable } from '@/components/ui/data-table'
 import { Card } from '@/components/ui/card'
 import { useIsMobile } from '@/hooks/use-mobile'
 import {
@@ -101,8 +103,8 @@ export default function Page() {
   const [loading, setLoading] = useState(true)
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
-  const [globalFilter, setGlobalFilter] = useState('')
   const [searchParams] = useSearchParams()
+  const [globalFilter, setGlobalFilter] = useState(() => searchParams.get('search') ?? '')
   const [membershipFilter, setMembershipFilter] = useState<MembershipFilter>(() => {
     const requested = searchParams.get('membership')
     return MEMBERSHIP_FILTERS.find(({ value }) => value === requested)?.value ?? 'all'
@@ -229,9 +231,7 @@ export default function Page() {
             </ProtectedModule>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-10 w-10 p-0" aria-label="Más acciones">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
+                <RowActionsButton label="Más acciones" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Acciones</DropdownMenuLabel>
@@ -386,71 +386,13 @@ export default function Page() {
             )}
           </div>
         ) : (
-          <div className="rounded-md border">
-            <table className="w-full">
-              <thead>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <tr key={headerGroup.id} className="border-b bg-muted/50">
-                    {headerGroup.headers.map((header) => (
-                      <th
-                        key={header.id}
-                        className="h-12 px-4 text-left align-middle font-medium text-muted-foreground"
-                      >
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                      </th>
-                    ))}
-                  </tr>
-                ))}
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={columns.length} className="h-24 text-center">
-                      Cargando usuarios...
-                    </td>
-                  </tr>
-                ) : table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map((row) => (
-                    <tr
-                      key={row.id}
-                      tabIndex={0}
-                      className="cursor-pointer border-b transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none"
-                      onClick={() => setDetailsClientId(row.original._id)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" && event.target === event.currentTarget) {
-                          setDetailsClientId(row.original._id)
-                        }
-                      }}
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <td
-                          key={cell.id}
-                          className="p-4 align-middle"
-                          onClick={cell.column.id === "actions" ? (event) => event.stopPropagation() : undefined}
-                        >
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                          )}
-                        </td>
-                      ))}
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={columns.length} className="h-24 text-center">
-                      No se encontraron usuarios.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            table={table}
+            loading={loading}
+            loadingText="Cargando usuarios..."
+            emptyText="No se encontraron usuarios."
+            onRowClick={(client) => setDetailsClientId(client._id)}
+          />
         )}
 
         {/* Paginación */}

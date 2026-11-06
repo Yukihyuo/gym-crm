@@ -57,8 +57,8 @@ export const buildCreatedAtFilter = (query = {}) => {
   }
 
   const filter = {}
-  if (query.startDate) filter.$gte = new Date(query.startDate)
-  if (query.endDate) filter.$lte = new Date(query.endDate)
+  if (query.startDate) filter.$gte = dayjs(query.startDate).toDate()
+  if (query.endDate) filter.$lte = dayjs(query.endDate).toDate()
   return filter
 }
 

@@ -2,10 +2,11 @@ import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import axios from 'axios'
 import { toast } from 'react-toastify'
-import { CalendarDays, CreditCard, Eye, MoreVertical, ReceiptText, UserRound } from 'lucide-react'
+import { CalendarDays, CreditCard, Eye, ReceiptText, UserRound } from 'lucide-react'
 import { PageHeader } from '@/components/global/PageHeader'
 import { DetailsSaleModal } from '@/components/sales/DetailsSaleModal'
 import { Button } from '@/components/ui/button'
+import { RowActionsButton } from "@/components/ui/row-actions-button"
 import { Card } from '@/components/ui/card'
 import {
   Table,
@@ -182,9 +183,7 @@ export default function SalesPage() {
                     </span>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" aria-label="Acciones de la venta">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
+                        <RowActionsButton label="Acciones de la venta" />
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <ProtectedModule page="Sales" type="read" method="hide">
@@ -242,20 +241,20 @@ export default function SalesPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Recibo</TableHead>
+                <TableHead sticky="start">Recibo</TableHead>
                 <TableHead>Cliente</TableHead>
                 <TableHead>Vendedor</TableHead>
                 <TableHead>Total</TableHead>
                 <TableHead>Método Pago</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead>Fecha</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
+                <TableHead sticky="end" className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {sales.map((sale) => (
                 <TableRow key={sale._id}>
-                  <TableCell className="font-medium">{sale.receiptNumber}</TableCell>
+                  <TableCell sticky="start" className="font-medium">{sale.receiptNumber}</TableCell>
                   <TableCell>
                     {sale.clientId?.profile?.names || "sale.clientId.firstName"}{' '}
                     {sale.clientId?.profile?.lastNames || "sale.clientId.lastName"}
@@ -284,12 +283,10 @@ export default function SalesPage() {
                   <TableCell className="text-sm text-muted-foreground">
                     {formatDate(sale.createdAt)}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell sticky="end" className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
+                        <RowActionsButton />
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <ProtectedModule page="Sales" type="read" method="hide">

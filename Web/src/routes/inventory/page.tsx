@@ -1,11 +1,12 @@
 import { PageHeader } from '@/components/global/PageHeader'
 import { Button } from '@/components/ui/button'
+import { RowActionsButton } from "@/components/ui/row-actions-button"
 import { NewProduct } from '@/components/Products/NewProduct'
 import { EditProduct } from '@/components/Products/EditProduct'
 import { ViewProduct } from '@/components/Products/ViewProduct'
 import { API_ENDPOINTS } from '@/config/api'
 import axios from 'axios'
-import { Package, MoreHorizontal, Eye, Pencil, Trash2 } from 'lucide-react'
+import { Package, Eye, Pencil, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import {
   useReactTable,
@@ -13,12 +14,12 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   getFilteredRowModel,
-  flexRender,
   type ColumnDef,
   type SortingState,
   type ColumnFiltersState,
 } from '@tanstack/react-table'
 import { Input } from '@/components/ui/input'
+import { DataTable } from '@/components/ui/data-table'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -190,9 +191,7 @@ export default function Page() {
         return (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
+              <RowActionsButton />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Acciones</DropdownMenuLabel>
@@ -281,60 +280,7 @@ export default function Page() {
         </div>
 
         {/* Tabla */}
-        <div className="rounded-md border">
-          <table className="w-full">
-            <thead>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id} className="border-b bg-muted/50">
-                  {headerGroup.headers.map((header) => (
-                    <th
-                      key={header.id}
-                      className="h-12 px-4 text-left align-middle font-medium text-muted-foreground"
-                    >
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                    </th>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={columns.length} className="h-24 text-center">
-                    Cargando productos...
-                  </td>
-                </tr>
-              ) : table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => (
-                  <tr
-                    key={row.id}
-                    className="border-b transition-colors hover:bg-muted/50"
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="p-4 align-middle">
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={columns.length} className="h-24 text-center">
-                    No se encontraron productos.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable table={table} loading={loading} loadingText="Cargando productos..." emptyText="No se encontraron productos." />
 
         {/* Paginación */}
         <div className="flex items-center justify-between px-2">

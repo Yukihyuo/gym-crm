@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { MonitorSmartphone } from "lucide-react"
 
 import { AccessResultDialog } from "../Clients/AccessResultDialog"
 import apiClient from "@/lib/axios"
@@ -139,13 +140,14 @@ export function ActiveTerminalSelector() {
   }
 
   return (
-    <div className="min-w-64 px-4">
+    <div className="w-36 min-w-0 sm:w-64 sm:px-4">
       <Select
         value={selectedTerminalId ?? ""}
         onValueChange={(value) => setTerminal(value)}
         disabled={loading || !terminals.length}
       >
-        <SelectTrigger className="w-full">
+        <SelectTrigger className="w-full gap-2">
+          <MonitorSmartphone className="size-4 shrink-0 text-muted-foreground" />
           <SelectValue
             placeholder={loading ? "Cargando terminales..." : "Selecciona una terminal"}
           />

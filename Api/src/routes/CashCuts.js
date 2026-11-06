@@ -14,7 +14,7 @@ const isOpenCashCut = (status) => OPEN_STATUSES.includes(status)
 const uniqueIds = (...values) => [...new Set(values.flat().filter(Boolean))]
 
 
-const mergeSystemTotals = (current = {}, incoming = {}, totalExpenses = 0) => {
+export const mergeSystemTotals = (current = {}, incoming = {}, totalExpenses = 0) => {
   const byMethod = {
     cash: incoming?.byMethod?.cash ?? current?.byMethod?.cash ?? 0,
     transfer: incoming?.byMethod?.transfer ?? current?.byMethod?.transfer ?? 0,
@@ -36,13 +36,13 @@ const mergeSystemTotals = (current = {}, incoming = {}, totalExpenses = 0) => {
   }
 }
 
-const mergeReportedTotals = (current = {}, incoming = {}) => ({
+export const mergeReportedTotals = (current = {}, incoming = {}) => ({
   cashInHand: incoming?.cashInHand ?? current?.cashInHand ?? 0,
   transferReceipts: incoming?.transferReceipts ?? current?.transferReceipts ?? 0,
   cardSlips: incoming?.cardSlips ?? current?.cardSlips ?? 0,
 })
 
-const calculateCashDifference = (initialCash, systemTotals, reportedTotals, cashExpenses = 0, bankExpenses = 0) => {
+export const calculateCashDifference = (initialCash, systemTotals, reportedTotals, cashExpenses = 0, bankExpenses = 0) => {
   // Efectivo esperado = (Fondo inicial + Ventas Efectivo) - Gastos de Caja
   const expectedCash = ((systemTotals?.byMethod?.cash ?? 0) + (initialCash ?? 0)) - cashExpenses
   const cashInHand = reportedTotals?.cashInHand ?? 0
@@ -58,7 +58,7 @@ const calculateCashDifference = (initialCash, systemTotals, reportedTotals, cash
   return cashDiff + digitalDiff
 }
 
-const resolveClosedStatus = (cashDifference) => {
+export const resolveClosedStatus = (cashDifference) => {
   if (cashDifference === 0) {
     return 'balanced'
   }

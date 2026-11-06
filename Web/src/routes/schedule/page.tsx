@@ -154,8 +154,8 @@ export default function Page() {
         icon={<Clock className="h-5 w-5" />}
 
       />
-      <div className='grid grid-cols-4 w-full border-t border-gray-300 divide-x divide-gray-300'>
-        <div className='col-span-1 '>
+      <div className='grid w-full grid-cols-1 border-t border-gray-300 lg:grid-cols-[auto_minmax(0,1fr)] lg:divide-x lg:divide-gray-300'>
+        <div className='overflow-x-auto'>
 
           <Calendar
             mode="single"
@@ -167,9 +167,9 @@ export default function Page() {
           />
         </div>
 
-        <div className='col-start-2 col-span-full '>
-          <div className='grid grid-cols-7 gap-4 divide-x divide-gray-300' >
-            <div className='col-span-2 p-2 flex items-center gap-2' >
+        <div className='min-w-0'>
+          <div className='flex flex-wrap items-center gap-x-4 gap-y-1 px-2' >
+            <div className='flex items-center gap-2 p-2' >
 
               <span className="font-medium text-sm">
                 {format(weekStart, 'd', { locale: es })}-{format(weekEnd, 'd MMM', { locale: es })}
@@ -186,7 +186,7 @@ export default function Page() {
                 </ToggleGroupItem>
               </ToggleGroup>
             </div>
-            <div className='col-span-3 p-2' >
+            <div className='min-w-40 flex-1 p-2' >
               <Select value={selectedUserId} onValueChange={setSelectedUserId}>
                 <SelectTrigger className="border-none shadow-none bg-transparent focus:ring-0 px-0 text-lg ">
                   <SelectValue placeholder="Usuario" />
@@ -203,7 +203,7 @@ export default function Page() {
                 </SelectContent>
               </Select>
             </div>
-            <div className='col-span-2 p-2 text-right' ><NewScheduleModal /></div>
+            <div className='p-2 sm:ml-auto' ><NewScheduleModal /></div>
           </div>
 
           {/* Mostrar horarios filtrados */}
@@ -217,7 +217,8 @@ export default function Page() {
               ) : (
                 <div>
                   {/* Vista por día de la semana */}
-                  <div className='grid grid-cols-7 gap-3 mb-6'>
+                  <div className='-mx-1 mb-6 overflow-x-auto px-1'>
+                  <div className='grid min-w-[36rem] grid-cols-7 gap-3'>
                     {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                     {weekDaysSchedule.map((day: any, idx: number) => (
                       <div key={idx} className='border rounded-lg p-2'>
@@ -254,6 +255,7 @@ export default function Page() {
                         )}
                       </div>
                     ))}
+                  </div>
                   </div>
 
                   {/* Resumen de horarios activos */}

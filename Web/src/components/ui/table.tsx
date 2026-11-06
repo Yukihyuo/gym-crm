@@ -1,19 +1,18 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
+import { stickyColumnClass, type StickyPosition } from "@/lib/table"
+import { TableScroll } from "@/components/ui/table-scroll"
 
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
-    <div
-      data-slot="table-container"
-      className="relative w-full overflow-x-auto"
-    >
+    <TableScroll>
       <table
         data-slot="table"
         className={cn("w-full caption-bottom text-sm", className)}
         {...props}
       />
-    </div>
+    </TableScroll>
   )
 }
 
@@ -63,12 +62,15 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
   )
 }
 
-function TableHead({ className, ...props }: React.ComponentProps<"th">) {
+type StickyProps = { sticky?: StickyPosition }
+
+function TableHead({ className, sticky, ...props }: React.ComponentProps<"th"> & StickyProps) {
   return (
     <th
       data-slot="table-head"
       className={cn(
         "text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        sticky && stickyColumnClass(sticky),
         className
       )}
       {...props}
@@ -76,12 +78,13 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
   )
 }
 
-function TableCell({ className, ...props }: React.ComponentProps<"td">) {
+function TableCell({ className, sticky, ...props }: React.ComponentProps<"td"> & StickyProps) {
   return (
     <td
       data-slot="table-cell"
       className={cn(
         "p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        sticky && stickyColumnClass(sticky),
         className
       )}
       {...props}

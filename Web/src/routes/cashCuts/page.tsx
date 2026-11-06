@@ -10,14 +10,16 @@ import {
   type SortingState,
   useReactTable,
 } from '@tanstack/react-table'
-import { CalendarClock, CircleDollarSign, Wallet, MoreHorizontal, UserRound } from 'lucide-react'
+import { CalendarClock, CircleDollarSign, Wallet, UserRound } from 'lucide-react'
 import { toast } from 'react-toastify'
 import { PageHeader } from '@/components/global/PageHeader'
 import CashCutModal from '@/components/CashCut/CashCutModal'
 import DetailsCashCutModal from '@/components/CashCut/detailsCashCutModal'
 import ProtectedModule from '@/components/global/ProtectedModule'
 import { Input } from '@/components/ui/input'
+import { DataTable } from '@/components/ui/data-table'
 import { Button } from '@/components/ui/button'
+import { RowActionsButton } from "@/components/ui/row-actions-button"
 import { Card } from '@/components/ui/card'
 import {
   DropdownMenu,
@@ -213,9 +215,7 @@ export default function Page() {
         cell: ({ row }) => (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
+              <RowActionsButton />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem asChild>
@@ -358,51 +358,12 @@ export default function Page() {
             )}
           </div>
         ) : (
-          <div className="rounded-md border">
-            <table className="w-full">
-              <thead>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <tr key={headerGroup.id} className="border-b bg-muted/50">
-                    {headerGroup.headers.map((header) => (
-                      <th
-                        key={header.id}
-                        className="h-12 px-4 text-left align-middle font-medium text-muted-foreground"
-                      >
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(header.column.columnDef.header, header.getContext())}
-                      </th>
-                    ))}
-                  </tr>
-                ))}
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={columns.length} className="h-24 text-center">
-                      Cargando cortes de caja...
-                    </td>
-                  </tr>
-                ) : table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map((row) => (
-                    <tr key={row.id} className="border-b transition-colors hover:bg-muted/50">
-                      {row.getVisibleCells().map((cell) => (
-                        <td key={cell.id} className="p-4 align-middle">
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </td>
-                      ))}
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={columns.length} className="h-24 text-center">
-                      No se encontraron cortes de caja para esta tienda.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            table={table}
+            loading={loading}
+            loadingText="Cargando cortes de caja..."
+            emptyText="No se encontraron cortes de caja para esta tienda."
+          />
         )}
 
         <div className="flex flex-col gap-2 px-2 sm:flex-row sm:items-center sm:justify-between">

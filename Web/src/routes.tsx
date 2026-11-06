@@ -1,7 +1,7 @@
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 
 //Paginas
-import Dashboard from "./routes/dashboard/page";
+import Home from "./routes/home/page";
 import Inventory from "./routes/inventory/page";
 import Pages from "./routes/pages/page";
 import Roles from "./routes/roles/page";
@@ -28,9 +28,7 @@ const router = createBrowserRouter([
     children: [
       {
         path: "/",
-        element: <ProtectedModule page="Dashboard" type="read" method="block"  >
-          <Dashboard />
-        </ProtectedModule>,
+        element: <Home />,
       },
       {
         path: "/roles",

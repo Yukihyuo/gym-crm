@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-	flexRender,
 	getCoreRowModel,
 	getFilteredRowModel,
 	getPaginationRowModel,
@@ -16,6 +15,7 @@ import { PageHeader } from '@/components/global/PageHeader'
 import ProtectedModule from '@/components/global/ProtectedModule'
 import NewExpenseModal from '@/components/Expenses/newExpenseModal'
 import { Input } from '@/components/ui/input'
+import { DataTable } from '@/components/ui/data-table'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { API_ENDPOINTS } from '@/config/api'
@@ -270,51 +270,12 @@ export default function Page() {
 						)}
 					</div>
 				) : (
-					<div className="rounded-md border">
-						<table className="w-full">
-							<thead>
-								{table.getHeaderGroups().map((headerGroup) => (
-									<tr key={headerGroup.id} className="border-b bg-muted/50">
-										{headerGroup.headers.map((header) => (
-											<th
-												key={header.id}
-												className="h-12 px-4 text-left align-middle font-medium text-muted-foreground"
-											>
-												{header.isPlaceholder
-													? null
-													: flexRender(header.column.columnDef.header, header.getContext())}
-											</th>
-										))}
-									</tr>
-								))}
-							</thead>
-							<tbody>
-								{loading ? (
-									<tr>
-										<td colSpan={columns.length} className="h-24 text-center">
-											Cargando gastos...
-										</td>
-									</tr>
-								) : table.getRowModel().rows?.length ? (
-									table.getRowModel().rows.map((row) => (
-										<tr key={row.id} className="border-b transition-colors hover:bg-muted/50">
-											{row.getVisibleCells().map((cell) => (
-												<td key={cell.id} className="p-4 align-middle">
-													{flexRender(cell.column.columnDef.cell, cell.getContext())}
-												</td>
-											))}
-										</tr>
-									))
-								) : (
-									<tr>
-										<td colSpan={columns.length} className="h-24 text-center">
-											No se encontraron gastos para esta tienda.
-										</td>
-									</tr>
-								)}
-							</tbody>
-						</table>
-					</div>
+					<DataTable
+						table={table}
+						loading={loading}
+						loadingText="Cargando gastos..."
+						emptyText="No se encontraron gastos para esta tienda."
+					/>
 				)}
 
 				<div className="flex flex-col gap-2 px-2 sm:flex-row sm:items-center sm:justify-between">
